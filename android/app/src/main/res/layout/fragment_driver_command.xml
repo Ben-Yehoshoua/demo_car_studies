@@ -1,0 +1,97 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@drawable/border_simple">
+
+    <!-- Gauche / Droite -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        >
+
+        <ImageButton
+            android:id="@+id/btnHorn"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/horn_car"
+            android:scaleType="fitCenter"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Gauche"
+            android:padding="8dp" />
+
+        <!-- Espace entre les deux boutons -->
+        <View
+            android:layout_width="100dp"
+            android:layout_height="0dp" />
+
+        <ImageButton
+            android:id="@+id/btnHazard"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/hazard_car"
+            android:scaleType="fitCenter"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Droite"
+            android:padding="8dp" />
+    </LinearLayout>
+
+    <!-- Haut -->
+    <ImageButton
+        android:id="@+id/btnUp"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:src="@drawable/arrow_up"
+        android:scaleType="fitCenter"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Haut"
+        android:padding="8dp" />
+
+    <!-- Gauche / Droite -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <ImageButton
+            android:id="@+id/btnLeft"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/arrow_left"
+            android:scaleType="fitCenter"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Gauche"
+            android:padding="8dp" />
+
+        <!-- Espace entre les deux boutons -->
+        <View
+            android:layout_width="48dp"
+            android:layout_height="0dp" />
+
+        <ImageButton
+            android:id="@+id/btnRight"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/arrow_right"
+            android:scaleType="fitCenter"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Droite"
+            android:padding="8dp" />
+    </LinearLayout>
+
+    <!-- Bas -->
+    <ImageButton
+        android:id="@+id/btnDown"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:src="@drawable/arrow_down"
+        android:scaleType="fitCenter"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Bas"
+        android:padding="8dp" />
+
+</LinearLayout>
