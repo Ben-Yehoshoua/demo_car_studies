@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulateur Voiture - Drive Simulator Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 {
+            color: white;
+            font-weight: 300;
+            font-size: 1.8rem;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .nav-tab {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .nav-tab:hover, .nav-tab.active {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .container {
+            display: flex;
+            height: calc(100vh - 80px);
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .controls {
+            width: 200px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .controls h3 {
+            text-align: center;
+            color: #4a5568;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .control-btn {
+            padding: 1rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-btn.primary {
+            background: linear-gradient(135deg, #4299e1, #3182ce);
+            color: white;
+        }
+
+        .control-btn.secondary {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+        }
+
+        .control-btn.warning {
+            background: linear-gradient(135deg, #f6ad55, #ed8936);
+            color: white;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-btn:active {
+            transform: translateY(-1px);
+        }
+
+        .screen {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            color: #4a5568;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .screen::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+            animation: shine 3s infinite;
+        }
+
+        @keyframes shine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .screen-content {
+            z-index: 1;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .status-display {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .right-panel {
+            width: 200px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .right-panel h3 {
+            text-align: center;
+            color: #4a5568;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .info-card {
+            background: rgba(116, 75, 162, 0.1);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #764ba2;
+        }
+
+        .info-label {
+            font-size: 0.8rem;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-top: 0.5rem;
+        }
+
+        .bottom-controls {
+            position: fixed;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 1rem;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .eval-btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 25px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .eval-btn.speed {
+            background: linear-gradient(135deg, #ed8936, #dd6b20);
+            color: white;
+        }
+
+        .eval-btn.performance {
+            background: linear-gradient(135deg, #9f7aea, #805ad5);
+            color: white;
+        }
+
+        .eval-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .controls, .right-panel {
+                width: 100%;
+            }
+            
+            .bottom-controls {
+                position: relative;
+                transform: none;
+                left: auto;
+                bottom: auto;
+                margin-top: 1rem;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚗 Drive Simulator Pro</h1>
+        <div class="nav-tabs">
+            <a href="/" class="nav-tab active">Simulateur</a>
+            <a href="/chatbot" class="nav-tab">Chatbot</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <h3>🎮 Contrôles</h3>
+            <button class="control-btn primary" onclick="sendAction('avance')">⬆️ Avancer</button>
+            <button class="control-btn primary" onclick="sendAction('recule')">⬇️ Reculer</button>
+            <button class="control-btn secondary" onclick="sendAction('tourne_a_gauche')">⬅️ Gauche</button>
+            <button class="control-btn secondary" onclick="sendAction('tourne_a_droite')">➡️ Droite</button>
+            <button class="control-btn warning" onclick="sendAction('klaxonne')">🔊 Klaxonne</button>
+            <button class="control-btn warning" onclick="sendAction('clignotte')">🚨 Clignotte</button>
+        </div>
+
+        <div class="screen" id="screen">
+            <img src="/video_feed" style="width: 100%; height: 100%; object-fit: cover; border-radius: 15px;" />
+        </div>
+
+        <div class="right-panel">
+            <h3>📊 Statistiques</h3>
+            
+            <div class="info-card">
+                <div class="info-label">Vitesse Actuelle</div>
+                <div class="info-value" id="speed">0 km/h</div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-label">Distance Parcourue</div>
+                <div class="info-value" id="distance">0 km</div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-label">Direction</div>
+                <div class="info-value" id="direction">Nord</div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-label">État du Moteur</div>
+                <div class="info-value" id="engine">🟢 Arrêté</div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-label">Score</div>
+                <div class="info-value" id="score">100%</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-controls">
+        <button class="eval-btn speed" onclick="sendAction('vitesse')">⚡ Évaluer Vitesse</button>
+        <button class="eval-btn performance" onclick="sendAction('performance')">🏆 Évaluer Performance</button>
+    </div>
+
+    <script>
+        function sendAction(action){
+            // Animation du bouton
+            const button = event.target;
+            button.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                button.style.transform = '';
+            }, 150);
+
+            fetch('/simulate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: action})
+            })
+            .then(response => response.json())
+            .then(data => {
+                //updateScreen(data.action);
+                updateStats(data.action);
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+            });
+        }
+
+function updateScreen(action) {
+    const screen = document.getElementById('screen');
+
+    const actions = {
+        'avance': '🚗💨 Avancement en cours...',
+        'recule': '🚗⬅️ Marche arrière...',
+        'tourne_a_gauche': '🚗↖️ Virage à gauche...',
+        'tourne_a_droite': '🚗↗️ Virage à droite...',
+        'klaxonne': '🔊📢 BEEP BEEP ! Klaxon activé !',
+        'clignotte': '🚨⚡ Clignotants activés !',
+        'vitesse': '⚡ Analyse de vitesse...',
+        'performance': '🏆 Évaluation des performances...'
+    };
+
+    screen.innerHTML = `
+        <div class="screen-content">
+            <div class="status-display">${actions[action] || 'Action en cours...'}</div>
+            <p style="font-size: 1rem; color: #718096; margin-top: 1rem;">
+                Dernière action: ${action}
+            </p>
+        </div>
+    `;
+}
+
+        function updateStats(action) {
+            // Simulation de mise à jour des statistiques
+            const speedEl = document.getElementById('speed');
+            const distanceEl = document.getElementById('distance');
+            const directionEl = document.getElementById('direction');
+            const engineEl = document.getElementById('engine');
+
+
+            if (action === 'avancer') {
+                speedEl.textContent = Math.floor(Math.random() * 60 + 20) + ' km/h';
+                engineEl.innerHTML = '🟢 En marche';
+                distanceEl.textContent = (parseFloat(distanceEl.textContent) + 0.5).toFixed(1) + ' km';
+            } else if (action === 'reculer') {
+                speedEl.textContent = Math.floor(Math.random() * 20 + 5) + ' km/h';
+                engineEl.innerHTML = '🟡 Marche arrière';
+            } else if (action === 'tourner_gauche') {
+                directionEl.textContent = 'Ouest';
+            } else if (action === 'tourner_droite') {
+                directionEl.textContent = 'Est';
+            } else if (action === 'klaxonne') {
+                engineEl.innerHTML = '🔊 Klaxon activé';
+                setTimeout(() => {
+                    engineEl.innerHTML = '🟢 En marche';
+                }, 2000);
+            } else if (action === 'clignotte') {
+                engineEl.innerHTML = '🚨 Clignotants ON';
+                setTimeout(() => {
+                    engineEl.innerHTML = '🟢 En marche';
+                }, 3000);
+            }
+        }
+    </script>
+</body>
+</html>
