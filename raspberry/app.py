@@ -1,54 +1,88 @@
 from flask import Flask, render_template, request, jsonify, Response
-import bluetooth
 import cv2
 import atexit
 import time
 from threading import Lock
-import serial
+from dotenv import load_dotenv
+from openai import OpenAI
+import os
+import json
 
-# Configure le port série
-ser = serial.Serial(
-    port='/dev/serial0',    # Peut aussi être /dev/ttyAMA0 ou /dev/ttyS0 selon le modèle
-    baudrate=9600,
-    timeout=1               # Temps d'attente pour lecture
-)
+DEBUG = False
+
+if DEBUG:
+    pass
+else:
+    import serial
+    # Configure le port série
+    ser = serial.Serial(
+        port='/dev/serial0',    # Peut aussi être /dev/ttyAMA0 ou /dev/ttyS0 selon le modèle
+        baudrate=9600,
+        timeout=1               # Temps d'attente pour lecture
+    )
 
 def envoyer_message(message):
-    ser.write((message + '\n').encode('utf-8'))
-    print(f"Envoyé à l'Arduino : {message}")
 
+    if DEBUG:
+        pass
+    else:
+        ser.write((message + '\n').encode('utf-8'))
+        print(f"Envoyé à l'Arduino : {message}")
 
 # Adresse MAC de ton module HC-06 (à adapter)
 HC06_MAC_ADDRESS = '00:14:03:06:0C:02'
 PORT = 1  # Le port RFCOMM standard
 
-# try:
-    # print(f"Connexion à {HC06_MAC_ADDRESS}...")
-    # sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-    # sock.connect((HC06_MAC_ADDRESS, PORT))
-    # time.sleep(5)
-    # print("Connecté au module HC-06")
-    # # Configurer le serveur Bluetooth
-    # server_socket = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-    # server_socket.bind(("", bluetooth.PORT_ANY))
-    # server_socket.listen(2)
-
-    # port = server_socket.getsockname()[1]
-    # bluetooth.advertise_service(server_socket, "LEDControl",
-                            # service_classes=[bluetooth.SERIAL_PORT_CLASS],
-                            # profiles=[bluetooth.SERIAL_PORT_PROFILE])
-
-    # #print(f"En attente de connexion Bluetooth sur le port {port}...")
-
-    # #client_socket, client_info = server_socket.accept()
-    
-    # #print(f"Connexion acceptée de {client_info}")
-
-# except bluetooth.btcommon.BluetoothError as e:
-    # print(f"Erreur Bluetooth : {e}")
-
+# Charge les variables du fichier .env à la racine du projet
+load_dotenv()
 
 app = Flask(__name__)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# --- Définition de l'outil que le modèle peut appeler ---
+TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "send_vehicle_command",
+            "description": "Envoyer une commande au véhicule/robot si l'utilisateur le demande",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "enum": [
+                            "avance",
+                            "recule",
+                            "tourne_a_droite",
+                            "tourne_a_gauche",
+                            "klaxonne",
+                            "clignotte",
+                        ],
+                        "description": "La commande normalisée à exécuter"
+                    }
+                },
+                "required": ["command"],
+                "additionalProperties": False
+            }
+        }
+    }
+]
+
+SYSTEM_PROMPT = (
+    "Tu es un assistant en français. "
+    "Quand l'utilisateur exprime une intention de mouvement ou d'action (ex: avancement, reculer, tourner à droite, "
+    "tourner à gauche, klaxonner, clignoter/‘blink’), tu DOIS appeler l'outil "
+    "`send_vehicle_command` avec la commande normalisée correspondante parmi "
+    "['avance','recule','tourne_a_droite','tourne_a_gauche','klaxonne','clignotte'].\n"
+    "Exemples:\n"
+    "- « avance un peu » -> command=avance\n"
+    "- « recule » -> command=recule\n"
+    "- « tourne à droite » -> command=tourne_a_droite\n"
+    "- « fais clignoter la led », « fais blinker la led » -> command=clignotte\n"
+    "Réponds aussi un court message à l'utilisateur. "
+    "Si la demande n'est pas une commande, réponds normalement sans appeler l'outil."
+)
 
 #---- Paramètres caméra (adapte si besoin) ----
 CAM_INDEX_CANDIDATES = [0, 1]       # essaie /dev/video0 puis /dev/video1
@@ -155,14 +189,62 @@ def chatbot():
 def simulate():
     action = request.json.get('action')
     #sock.send(action+ '\n')
-    envoyer_message(action)
+
+    if DEBUG:
+        pass
+    else:
+        envoyer_message(action)
+    
     print(f"Commande envoyée: {action}")
     return jsonify({"status": "success", "action": action})
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    message = request.json.get('message')
-    return jsonify({"reply": f"Tu as dit: {message}"})
+    data = request.get_json(force=True) or {}
+    user_message = (data.get('message') or "").strip()
+    if not user_message:
+        return jsonify({"error": "message manquant"}), 400
+
+    # Appel du modèle avec tool calling
+    completion = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.2,
+        tools=TOOLS,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_message},
+        ],
+    )
+
+    msg = completion.choices[0].message
+    reply_text = (msg.content or "").strip()
+
+    # Exécuter toutes les tool calls retournées (s'il y en a)
+    commandes_envoyees = []
+    tool_calls = getattr(msg, "tool_calls", None) or []
+    for call in tool_calls:
+        if call.type == "function" and call.function and call.function.name == "send_vehicle_command":
+            try:
+                args = json.loads(call.function.arguments or "{}")
+                cmd = args.get("command")
+                if cmd:
+                    try:
+                        envoyer_message(cmd)  # <-- ta fonction
+                    except NameError:
+                        # En dev si la fonction n'est pas importée
+                        print(f"[WARN] envoyer_message(...) non défini. Aurait envoyé: {cmd}")
+                    commandes_envoyees.append(cmd)
+            except Exception as parse_err:
+                print(f"[ERR] parse tool args: {parse_err}")
+
+    # Si le modèle n'a pas parlé (contenu vide), on renvoie au moins un accusé
+    if not reply_text and commandes_envoyees:
+        reply_text = f"Commande envoyée : {', '.join(commandes_envoyees)}."
+
+    return jsonify({
+        "reply": reply_text or "OK",
+        "commandes_envoyees": commandes_envoyees or None
+    }), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
