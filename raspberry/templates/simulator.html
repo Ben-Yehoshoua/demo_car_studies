@@ -389,6 +389,29 @@
         sendAction(map[e.key]);
       }
     });
+
+    // --- Rafraîchit l'affichage de la vitesse limite depuis /speed_limit ---
+    async function refreshSpeedLimit(){
+      try{
+        const r = await fetch('/speed_limit');
+        const j = await r.json();
+        const el = document.getElementById('speed-limit');
+        const v = j && j.speed_limit;
+        if(v === null || v === undefined){
+          el.textContent = '—';
+        }else{
+          // affiche entier si .0, sinon garde décimales
+          const txt = Number.isInteger(v) ? `${v} km/h` : `${(+v).toFixed(1)} km/h`;
+          el.textContent = txt;
+        }
+      }catch(e){
+        /* silencieux */
+      }
+    }
+    // premier affichage + poll périodique
+    refreshSpeedLimit();
+    setInterval(refreshSpeedLimit, 1000);
+
   </script>
 </body>
 </html>
