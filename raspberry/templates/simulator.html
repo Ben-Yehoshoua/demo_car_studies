@@ -1,401 +1,394 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulateur Voiture - Drive Simulator Pro</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Simulateur Voiture – Nouvelle UI</title>
+  <style>
+    :root {
+      --bg1: #667eea; /* indigo */
+      --bg2: #764ba2; /* purple */
+      --panel: rgba(255, 255, 255, 0.95);
+      --glass: rgba(255, 255, 255, 0.12);
+      --text: #2d3748;
+      --muted: #718096;
+      --brand: #6b46c1;
+      --accent: #3182ce;
+    }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #333;
-        }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 100%);
+      min-height: 100vh;
+      color: var(--text);
+    }
 
-        .header {
-            background: rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
+    /* header */
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; gap: 12px;
+      background: var(--glass); backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,.18);
+    }
+    .header h1 { color: #fff; font-weight: 500; font-size: 1.4rem; letter-spacing: .2px; }
+    .nav-tabs { display:flex; gap:.6rem; }
+    .nav-tab { text-decoration:none; color:#fff; background: rgba(255,255,255,.22); padding:.5rem .9rem; border-radius: 999px; transition:.2s; }
+    .nav-tab:hover, .nav-tab.active { background: rgba(255,255,255,.3); transform: translateY(-1px); }
 
-        .header h1 {
-            color: white;
-            font-weight: 300;
-            font-size: 1.8rem;
-        }
+    /* layout */
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr 320px; /* left | center | right */
+      gap: 14px; padding: 14px; height: calc(100vh - 64px);
+    }
 
-        .nav-tabs {
-            display: flex;
-            gap: 1rem;
-        }
+    .panel { background: var(--panel); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.12); backdrop-filter: blur(10px); }
 
-        .nav-tab {
-            padding: 0.5rem 1rem;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            text-decoration: none;
-            border-radius: 20px;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(5px);
-        }
+    /* left info */
+    .left { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .left h3 { text-align:center; color:#4a5568; font-weight: 600; margin-bottom: 6px; }
+    .info {
+      background: rgba(116, 75, 162, 0.08);
+      border-left: 4px solid var(--brand);
+      padding: 12px 12px; border-radius: 12px;
+    }
+    .label { font-size: .78rem; color: var(--muted); letter-spacing:.3px; text-transform: uppercase; }
+    .value { margin-top: 6px; font-size: 1.05rem; font-weight: 600; color: var(--text); min-height: 1.4em; }
 
-        .nav-tab:hover, .nav-tab.active {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-        }
+    /* center screen */
+    .screen { position: relative; overflow: hidden; }
+    .screen video, .screen img { width: 100%; height: 100%; object-fit: cover; border-radius: 16px; display:block; }
+    .shine:before {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,.10) 50%, transparent 70%);
+      animation: shine 3s linear infinite; border-radius: 16px;
+    }
+    @keyframes shine { 0%{ transform: translateX(-100%);} 100%{ transform: translateX(100%);} }
 
-        .container {
-            display: flex;
-            height: calc(100vh - 80px);
-            gap: 1rem;
-            padding: 1rem;
-        }
+    /* right controls */
+    .right { padding: 16px; display:flex; flex-direction: column; gap: 16px; align-items:center; }
+    .right h3 { color:#4a5568; font-weight: 600; }
 
-        .controls {
-            width: 200px;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 1.5rem;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
+    .quick-actions { display:flex; gap:18px; }
+    .quick { display:flex; flex-direction: column; align-items: center; gap:6px; }
+    .icon-btn {
+      width:64px; height:64px; border-radius: 50%; border:none; cursor:pointer; background:linear-gradient(135deg, #f6ad55, #ed8936); color:#fff; font-size:28px; box-shadow: 0 8px 18px rgba(0,0,0,.18); transition: transform .08s ease; display:grid; place-items:center;
+    }
+    .icon-btn.secondary { background: linear-gradient(135deg, #9f7aea, #7c3aed); }
+    .icon-btn:active { transform: scale(.96); }
+    .quick small { font-size: .78rem; color: var(--muted); }
 
-        .controls h3 {
-            text-align: center;
-            color: #4a5568;
-            margin-bottom: 1rem;
-            font-weight: 600;
-        }
+    /* joystick */
+    .joystick-wrap { width: 220px; height: 220px; position: relative; }
+    .joystick {
+      position: relative; width:100%; height:100%;
+      background: radial-gradient(circle at 30% 30%, #f7fafc, #e2e8f0);
+      border-radius: 50%; box-shadow: inset 0 6px 12px rgba(0,0,0,.12), 0 12px 24px rgba(0,0,0,.15);
+    }
+    .dpad-btn {
+      position: absolute; width: 64px; height: 64px; border-radius: 16px; border:none; cursor:pointer; font-size: 22px; color:#fff; background: linear-gradient(135deg, #4299e1, var(--accent));
+      display:grid; place-items:center; box-shadow: 0 10px 20px rgba(0,0,0,.18); transition: transform .06s ease;
+    }
+    .dpad-btn:active { transform: translateY(1px) scale(.98); }
+    .dpad-up    { top: 10px; left: 50%; transform: translateX(-50%); }
+    .dpad-down  { bottom: 10px; left: 50%; transform: translateX(-50%); }
+    .dpad-left  { left: 10px; top: 50%; transform: translateY(-50%); }
+    .dpad-right { right: 10px; top: 50%; transform: translateY(-50%); }
 
-        .control-btn {
-            padding: 1rem;
-            border: none;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+    .hint { font-size:.8rem; color: var(--muted); text-align:center; margin-top:4px; }
 
-        .control-btn.primary {
-            background: linear-gradient(135deg, #4299e1, #3182ce);
-            color: white;
-        }
+    /* toast last command */
+    .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+      background: var(--panel); border-radius: 999px; padding: 10px 16px; box-shadow: 0 10px 30px rgba(0,0,0,.18); display:none; align-items:center; gap:8px; }
 
-        .control-btn.secondary {
-            background: linear-gradient(135deg, #48bb78, #38a169);
-            color: white;
-        }
+    @media (max-width: 1024px){
+      .layout { grid-template-columns: 1fr; height: auto; }
+      .right, .left { align-items: stretch; }
+      .right { order: 3; }
+      .left { order: 2; }
+      .screen { order: 1; height: 55vh; }
+      .joystick-wrap { margin: 0 auto; }
+    }
+  
+/* === Mobile layout overrides (requested) ================================ */
+@media (max-width: 1024px){
+  /* Stack vertically: Screen → Manettes → Infos (single line) */
+  .right { order: 2; }        /* controls */
+  .left  { order: 3; }        /* info row */
 
-        .control-btn.warning {
-            background: linear-gradient(135deg, #f6ad55, #ed8936);
-            color: white;
-        }
+  /* Make the info panel a single horizontal bar */
+  .left {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+  .left h3 { display: none; } /* hide "Informations" title to keep a single line */
 
-        .control-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-        }
+  /* Each info block becomes a compact chip */
+  .left .info {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 999px;
+    white-space: nowrap; /* keep on one line */
+  }
+  .left .label {
+    font-size: .75rem;
+    letter-spacing: .3px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .left .value {
+    font-size: .95rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-top: 0;
+    min-height: auto;
+  }
 
-        .control-btn:active {
-            transform: translateY(-1px);
-        }
+  /* Ensure the joystick stays centered on mobile */
+  .joystick-wrap { margin: 8px auto 0; }
 
-        .screen {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 2rem;
-            color: #4a5568;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .screen::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
-            animation: shine 3s infinite;
-        }
-
-        @keyframes shine {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-
-        .screen-content {
-            z-index: 1;
-            text-align: center;
-            padding: 2rem;
-        }
-
-        .status-display {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: #2d3748;
-        }
-
-        .right-panel {
-            width: 200px;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 1.5rem;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-        }
-
-        .right-panel h3 {
-            text-align: center;
-            color: #4a5568;
-            margin-bottom: 1rem;
-            font-weight: 600;
-        }
-
-        .info-card {
-            background: rgba(116, 75, 162, 0.1);
-            border-radius: 10px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border-left: 4px solid #764ba2;
-        }
-
-        .info-label {
-            font-size: 0.8rem;
-            color: #718096;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .info-value {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: #2d3748;
-            margin-top: 0.5rem;
-        }
-
-        .bottom-controls {
-            position: fixed;
-            bottom: 1rem;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 1rem;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 1rem 2rem;
-            border-radius: 50px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-        }
-
-        .eval-btn {
-            padding: 0.8rem 1.5rem;
-            border: none;
-            border-radius: 25px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .eval-btn.speed {
-            background: linear-gradient(135deg, #ed8936, #dd6b20);
-            color: white;
-        }
-
-        .eval-btn.performance {
-            background: linear-gradient(135deg, #9f7aea, #805ad5);
-            color: white;
-        }
-
-        .eval-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-                height: auto;
-            }
-            
-            .controls, .right-panel {
-                width: 100%;
-            }
-            
-            .bottom-controls {
-                position: relative;
-                transform: none;
-                left: auto;
-                bottom: auto;
-                margin-top: 1rem;
-                justify-content: center;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>🚗 Drive Simulator Pro</h1>
-        <div class="nav-tabs">
-            <a href="/" class="nav-tab active">Simulateur</a>
-            <a href="/chatbot" class="nav-tab">Chatbot</a>
-        </div>
-    </div>
-
-    <div class="container">
-        <div class="controls">
-            <h3>🎮 Contrôles</h3>
-            <button class="control-btn primary" onclick="sendAction('avance')">⬆️ Avancer</button>
-            <button class="control-btn primary" onclick="sendAction('recule')">⬇️ Reculer</button>
-            <button class="control-btn secondary" onclick="sendAction('tourne_a_gauche')">⬅️ Gauche</button>
-            <button class="control-btn secondary" onclick="sendAction('tourne_a_droite')">➡️ Droite</button>
-            <button class="control-btn warning" onclick="sendAction('klaxonne')">🔊 Klaxonne</button>
-            <button class="control-btn warning" onclick="sendAction('clignotte')">🚨 Clignotte</button>
-        </div>
-
-        <div class="screen" id="screen">
-            <img src="/video_feed" style="width: 100%; height: 100%; object-fit: cover; border-radius: 15px;" />
-        </div>
-
-        <div class="right-panel">
-            <h3>📊 Statistiques</h3>
-            
-            <div class="info-card">
-                <div class="info-label">Vitesse Actuelle</div>
-                <div class="info-value" id="speed">0 km/h</div>
-            </div>
-
-            <div class="info-card">
-                <div class="info-label">Distance Parcourue</div>
-                <div class="info-value" id="distance">0 km</div>
-            </div>
-
-            <div class="info-card">
-                <div class="info-label">Direction</div>
-                <div class="info-value" id="direction">Nord</div>
-            </div>
-
-            <div class="info-card">
-                <div class="info-label">État du Moteur</div>
-                <div class="info-value" id="engine">🟢 Arrêté</div>
-            </div>
-
-            <div class="info-card">
-                <div class="info-label">Score</div>
-                <div class="info-value" id="score">100%</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="bottom-controls">
-        <button class="eval-btn speed" onclick="sendAction('vitesse')">⚡ Évaluer Vitesse</button>
-        <button class="eval-btn performance" onclick="sendAction('performance')">🏆 Évaluer Performance</button>
-    </div>
-
-    <script>
-        function sendAction(action){
-            // Animation du bouton
-            const button = event.target;
-            button.style.transform = 'scale(0.95)';
-            setTimeout(() => {
-                button.style.transform = '';
-            }, 150);
-
-            fetch('/simulate', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({action: action})
-            })
-            .then(response => response.json())
-            .then(data => {
-                //updateScreen(data.action);
-                updateStats(data.action);
-            })
-            .catch(error => {
-                console.error('Erreur:', error);
-            });
-        }
-
-function updateScreen(action) {
-    const screen = document.getElementById('screen');
-
-    const actions = {
-        'avance': '🚗💨 Avancement en cours...',
-        'recule': '🚗⬅️ Marche arrière...',
-        'tourne_a_gauche': '🚗↖️ Virage à gauche...',
-        'tourne_a_droite': '🚗↗️ Virage à droite...',
-        'klaxonne': '🔊📢 BEEP BEEP ! Klaxon activé !',
-        'clignotte': '🚨⚡ Clignotants activés !',
-        'vitesse': '⚡ Analyse de vitesse...',
-        'performance': '🏆 Évaluation des performances...'
-    };
-
-    screen.innerHTML = `
-        <div class="screen-content">
-            <div class="status-display">${actions[action] || 'Action en cours...'}</div>
-            <p style="font-size: 1rem; color: #718096; margin-top: 1rem;">
-                Dernière action: ${action}
-            </p>
-        </div>
-    `;
+  /* Keep the camera tall on mobile */
+  .screen { height: 55vh; }
 }
 
-        function updateStats(action) {
-            // Simulation de mise à jour des statistiques
-            const speedEl = document.getElementById('speed');
-            const distanceEl = document.getElementById('distance');
-            const directionEl = document.getElementById('direction');
-            const engineEl = document.getElementById('engine');
+/* --- Contrainte caméra & mise à l'échelle sur mobile --- */
+@media (max-width: 1024px){
+  /* Le panneau écran ne dépasse jamais le viewport */
+  .screen {
+    /* garde un ratio confortable, tout en restant dans la hauteur visible */
+    aspect-ratio: 16 / 9;
+    max-height: 58dvh;           /* évite le débordement sur claviers/OS bars */
+    height: auto;                /* laisse le ratio contrôler la hauteur */
+    overflow: hidden;            /* coupe tout débordement éventuel */
+    background: #000;            /* bandes noires si besoin */
+  }
+  /* Le flux vidéo est contenu (pas recadré) */
+  .screen video,
+  .screen img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;         /* <= le point clé: plus de dépassement */
+    border-radius: 16px;
+    display: block;
+  }
 
+  /* Palette commandes: compacte & wrap si manque de place */
+  .right { padding: 12px; }
+  .quick-actions { 
+    gap: 12px; 
+    flex-wrap: wrap;             /* passe à la ligne si nécessaire */
+    justify-content: center;
+  }
+  .icon-btn { 
+    width: 56px; 
+    height: 56px; 
+    font-size: 24px; 
+  }
+  .joystick-wrap { 
+    width: 200px; 
+    height: 200px; 
+    margin: 8px auto 0; 
+  }
+  .dpad-btn { width: 56px; height: 56px; }
 
-            if (action === 'avancer') {
-                speedEl.textContent = Math.floor(Math.random() * 60 + 20) + ' km/h';
-                engineEl.innerHTML = '🟢 En marche';
-                distanceEl.textContent = (parseFloat(distanceEl.textContent) + 0.5).toFixed(1) + ' km';
-            } else if (action === 'reculer') {
-                speedEl.textContent = Math.floor(Math.random() * 20 + 5) + ' km/h';
-                engineEl.innerHTML = '🟡 Marche arrière';
-            } else if (action === 'tourner_gauche') {
-                directionEl.textContent = 'Ouest';
-            } else if (action === 'tourner_droite') {
-                directionEl.textContent = 'Est';
-            } else if (action === 'klaxonne') {
-                engineEl.innerHTML = '🔊 Klaxon activé';
-                setTimeout(() => {
-                    engineEl.innerHTML = '🟢 En marche';
-                }, 2000);
-            } else if (action === 'clignotte') {
-                engineEl.innerHTML = '🚨 Clignotants ON';
-                setTimeout(() => {
-                    engineEl.innerHTML = '🟢 En marche';
-                }, 3000);
-            }
-        }
-    </script>
+  /* Panneau infos en bas: reste sur une seule ligne et ne pousse rien hors écran */
+  .left {
+    padding: 8px 10px;
+    overflow: auto;              /* scroll horizontal si vraiment trop long */
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Toast (bandeau du bas): respecte la zone sûre et ne sort pas de l'écran */
+  .toast {
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: max(12px, env(safe-area-inset-bottom, 0px) + 12px);
+    max-width: calc(100vw - 24px);
+  }
+
+  /* Le layout prend en compte la zone sûre globale */
+  .layout {
+    padding:
+      max(12px, env(safe-area-inset-top, 0px))
+      12px
+      max(12px, env(safe-area-inset-bottom, 0px))
+      12px;
+  }
+}
+
+/* Optionnel: limiter la brillance sur mobile pour éviter l'effet "bord qui dépasse" */
+@media (max-width: 1024px){
+  .shine:before { display: none; }
+}
+
+/* ======================================================================= */
+
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>🚗 Drive Simulator Pro</h1>
+    <nav class="nav-tabs">
+      <a class="nav-tab active" href="/">Simulateur</a>
+      <a class="nav-tab" href="/chatbot">Chatbot</a>
+    </nav>
+  </div>
+
+  <main class="layout">
+    <!-- Left infos only: Vitesse Limite, Etat du moteur, Dernière commande -->
+    <aside class="panel left">
+      <h3>ℹ️ Informations</h3>
+      <section class="info">
+        <div class="label">Vitesse Limite</div>
+        <div class="value" id="speed-limit">—</div>
+      </section>
+      <section class="info">
+        <div class="label">État du moteur</div>
+        <div class="value" id="engine-status">🟢 Arrêté</div>
+      </section>
+      <section class="info">
+        <div class="label">Dernière commande</div>
+        <div class="value" id="last-command">Aucune</div>
+      </section>
+    </aside>
+
+    <!-- Center screen (unchanged backend: still uses /video_feed) -->
+    <section class="panel screen shine" id="screen">
+      <img src="/video_feed" alt="Flux vidéo" />
+    </section>
+
+    <!-- Right controls: icons on top + joystick style for directions -->
+    <aside class="panel right">
+      <h3>🎮 Commandes</h3>
+
+      <div class="quick-actions" aria-label="Actions rapides">
+        <div class="quick">
+          <button class="icon-btn" title="Klaxonner" aria-label="Klaxonner" onclick="sendAction('klaxonne')">🔊</button>
+          <small>Klaxonner</small>
+        </div>
+        <div class="quick">
+          <button class="icon-btn secondary" title="Clignoter" aria-label="Clignoter" onclick="sendAction('clignotte')">🚨</button>
+          <small>Clignoter</small>
+        </div>
+      </div>
+
+      <div class="joystick-wrap" aria-label="Manette directionnelle">
+        <div class="joystick">
+          <button class="dpad-btn dpad-up"    title="Avancer" aria-label="Avancer" onclick="sendAction('avance')">⬆️</button>
+          <button class="dpad-btn dpad-left"  title="Tourner à gauche" aria-label="Tourner à gauche" onclick="sendAction('tourne_a_gauche')">⬅️</button>
+          <button class="dpad-btn dpad-right" title="Tourner à droite" aria-label="Tourner à droite" onclick="sendAction('tourne_a_droite')">➡️</button>
+          <button class="dpad-btn dpad-down"  title="Reculer" aria-label="Reculer" onclick="sendAction('recule')">⬇️</button>
+        </div>
+      </div>
+      <p class="hint">Astuce : utilisez aussi les touches fléchées du clavier.</p>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast">✅ <span id="toast-text"></span></div>
+
+  <script>
+    // --- State --------------------------------------------------------------
+    const lastCmdKey = 'simu:last-command';
+
+    function setLastCommand(cmd){
+      const map = {
+        'avance': 'Avancer',
+        'recule': 'Reculer',
+        'tourne_a_gauche': 'Tourner à gauche',
+        'tourne_a_droite': 'Tourner à droite',
+        'klaxonne': 'Klaxonner',
+        'clignotte': 'Clignoter',
+        'vitesse': 'Évaluer Vitesse',
+        'performance': 'Évaluer Performance'
+      };
+      const label = map[cmd] || cmd;
+      document.getElementById('last-command').textContent = label;
+      try { localStorage.setItem(lastCmdKey, label); } catch(_){}
+      showToast(`Dernière commande : ${label}`);
+    }
+
+    function showToast(text){
+      const toast = document.getElementById('toast');
+      const tt = document.getElementById('toast-text');
+      tt.textContent = text;
+      toast.style.display = 'flex';
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(()=>{ toast.style.display='none'; }, 1600);
+    }
+
+    // Load persisted last command on startup
+    (function(){
+      try {
+        const saved = localStorage.getItem(lastCmdKey);
+        if(saved){ document.getElementById('last-command').textContent = saved; }
+      } catch(_){ /* ignore */ }
+    })();
+
+    // --- Backend interaction (unchanged endpoint) --------------------------
+    function sendAction(action){
+      // small press animation comes from :active; extra haptic feel here
+      fetch('/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+      })
+      .then(r => r.json())
+      .then(data => {
+        // Keep video feed; optionally overlay text feedback
+        flashOverlay(action);
+        setLastCommand(data.action || action);
+        // Ne pas modifier l'état moteur ici ("laisse tel quel")
+      })
+      .catch(err => {
+        console.error('Erreur:', err);
+        flashOverlay('Erreur');
+      });
+    }
+
+    // Visual micro‑feedback on the screen
+    function flashOverlay(action){
+      const messages = {
+        'avance': 'Avance…',
+        'recule': 'Recule…',
+        'tourne_a_gauche': 'Gauche…',
+        'tourne_a_droite': 'Droite…',
+        'klaxonne': 'BEEP! Klaxon',
+        'clignotte': 'Clignotants',
+        'Erreur': 'Erreur'
+      };
+      const scr = document.getElementById('screen');
+      const tag = document.createElement('div');
+      tag.style.position = 'absolute';
+      tag.style.inset = '0';
+      tag.style.display = 'grid';
+      tag.style.placeItems = 'center';
+      tag.style.pointerEvents = 'none';
+      tag.style.borderRadius = '16px';
+      tag.style.backdropFilter = 'blur(2px)';
+      tag.style.background = 'rgba(0,0,0,.18)';
+      tag.style.color = '#fff';
+      tag.style.fontSize = '1.4rem';
+      tag.textContent = messages[action] || action;
+      scr.appendChild(tag);
+      setTimeout(()=>{ tag.remove(); }, 500);
+    }
+
+    // Keyboard support for arrows
+    window.addEventListener('keydown', (e)=>{
+      if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
+        e.preventDefault();
+        const map = { ArrowUp:'avance', ArrowDown:'recule', ArrowLeft:'tourne_a_gauche', ArrowRight:'tourne_a_droite' };
+        sendAction(map[e.key]);
+      }
+    });
+  </script>
 </body>
 </html>
