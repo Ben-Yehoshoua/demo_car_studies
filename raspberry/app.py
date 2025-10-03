@@ -11,7 +11,7 @@ import numpy as np
 import base64
 import re
 from concurrent.futures import ThreadPoolExecutor
-
+from typing import Optional
 
 DEBUG = False
 
@@ -158,7 +158,7 @@ _last_capture_ts = 0.0
 _OCR_EXEC = ThreadPoolExecutor(max_workers=1)
 _ocr_inflight = False
 
-def _quick_compress_to_b64_jpeg(path: str) -> str | None:
+def _quick_compress_to_b64_jpeg(path: str) -> Optional[str]:
     """
     Charge l'image, convertit en niveaux de gris, redimensionne à max 320px,
     encode en JPEG qualité 60, renvoie une data URL prête à envoyer.
