@@ -11,7 +11,7 @@ import numpy as np
 import base64
 import re
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
+from typing import Optional, Union
 
 DEBUG = False
 
@@ -494,7 +494,7 @@ from threading import RLock
 _speed_limit_value = None
 _speed_limit_lock = RLock()
 
-def set_speed_limit(value: int | float | None):
+def set_speed_limit(value: Optional[Union[int, float]]):
     """
     Met à jour la vitesse limite côté serveur (utilisable depuis n'importe quel code Python).
     value=None permet d'effacer/mettre '—'.
