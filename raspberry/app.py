@@ -1,8 +1,9 @@
+# app.py — mode MANUEL : capture sur bouton, puis OCR → set_speed_limit
 from flask import Flask, render_template, request, jsonify, Response
 import cv2
 import atexit
 import time
-from threading import Lock
+from threading import Lock, RLock
 from dotenv import load_dotenv
 from openai import OpenAI
 import os
@@ -12,68 +13,46 @@ import base64
 import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Union
+from datetime import datetime
 
+# ========= Configuration générale ============================================
 DEBUG = False
 
+# Port série pour Arduino (désactivé si DEBUG=True)
 if DEBUG:
-    pass
+    ser = None
 else:
     import serial
-    # Configure le port série
     ser = serial.Serial(
-        port='/dev/serial0',    # Peut aussi être /dev/ttyAMA0 ou /dev/ttyS0 selon le modèle
+        port='/dev/serial0',   # /dev/ttyAMA0 ou /dev/ttyS0 selon modèle
         baudrate=9600,
-        timeout=1               # Temps d'attente pour lecture
+        timeout=1
     )
 
-def envoyer_message(message):
-
+def envoyer_message(message: str):
+    """Envoie une commande simple à l’Arduino via série."""
     if DEBUG:
-        pass
+        print(f"[SERIAL:DEBUG] {message}")
     else:
         ser.write((message + '\n').encode('utf-8'))
         print(f"Envoyé à l'Arduino : {message}")
 
-# Adresse MAC de ton module HC-06 (à adapter)
-HC06_MAC_ADDRESS = '00:14:03:06:0C:02'
-PORT = 1  # Le port RFCOMM standard
-
-# Active/désactive la détection (pratique pour tester)
-ENABLE_SPEED_SIGN_DETECT = True
-
-# Seuils HSV pour le rouge (anneau rouge du panneau)
-#_LOWER_RED_1 = np.array([0, 70, 50])
-#_UPPER_RED_1 = np.array([10, 255, 255])
-#_LOWER_RED_2 = np.array([170, 70, 50])
-#_UPPER_RED_2 = np.array([180, 255, 255])
-
-# Seuils d'"intérieur blanc" (faible saturation, forte luminosité)
-#_SAT_MAX_WHITE = 60
-#_VAL_MIN_WHITE = 160
-
-_LOWER_RED_1 = np.array([0, 40, 40])
-_UPPER_RED_1 = np.array([12, 255, 255])
-_LOWER_RED_2 = np.array([168, 40, 40])
-_UPPER_RED_2 = np.array([180, 255, 255])
-
-_SAT_MAX_WHITE = 80      # tolère un blanc un peu “sale”
-_VAL_MIN_WHITE = 140     # baisse la barre en faible lumière
-
-# Contraintes géométriques
-#_MIN_AREA = 800          # taille minimale du contour
-#_MIN_PERIM = 100         # périmètre minimal
-#_MIN_CIRCULARITY = 0.5   # 1.0 = cercle parfait
-
+# --- Détection panneau (seulement utilisée à la demande) ---------------------
+# Plages HSV « rouge » + heuristique « cœur blanc » (panneau vitesse)
+_LOWER_RED_1 = np.array([0,   40, 40], np.uint8)
+_UPPER_RED_1 = np.array([12, 255,255], np.uint8)
+_LOWER_RED_2 = np.array([168, 40, 40], np.uint8)
+_UPPER_RED_2 = np.array([180,255,255], np.uint8)
+_SAT_MAX_WHITE = 80
+_VAL_MIN_WHITE = 140
 _MIN_AREA = 500
 _MIN_PERIM = 80
-_MIN_CIRCULARITY = 0.35   # au lieu de 0.5
-
+_MIN_CIRCULARITY = 0.35
 
 def _circularity(area: float, perim: float) -> float:
     if perim <= 1e-6:
         return 0.0
     return 4.0 * np.pi * (area / (perim * perim))
-
 
 def detect_speed_limit_candidates(frame_bgr: np.ndarray):
     """
@@ -81,36 +60,22 @@ def detect_speed_limit_candidates(frame_bgr: np.ndarray):
     Retourne une liste de bounding boxes [(x, y, w, h), ...].
     """
     try:
-        # Lissage léger pour réduire le bruit
-        img = cv2.GaussianBlur(frame_bgr, (5, 5), 0)
-        # Denoise doux + unsharp mask + boost du V (CLAHE) pour faible lumière
         img = cv2.bilateralFilter(frame_bgr, d=7, sigmaColor=60, sigmaSpace=60)
-
-        # Unsharp mask
+        # Unsharp mask léger
         blur = cv2.GaussianBlur(img, (0, 0), 1.2)
         img = cv2.addWeighted(img, 1.6, blur, -0.6, 0)
 
-        # Passe en HSV et applique CLAHE sur V
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        h, s, v = cv2.split(hsv)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-        v = clahe.apply(v)
-        hsv = cv2.merge([h, s, v])
-        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-
-        # Masque rouge (deux plages HSV pour couvrir le wrap 0°/180°)
+        # Masque rouge
         mask1 = cv2.inRange(hsv, _LOWER_RED_1, _UPPER_RED_1)
         mask2 = cv2.inRange(hsv, _LOWER_RED_2, _UPPER_RED_2)
         mask_red = cv2.bitwise_or(mask1, mask2)
 
-        # Nettoyage morphologique
-        kernel = np.ones((7, 7), np.uint8)   # au lieu de (5,5)
+        kernel = np.ones((7, 7), np.uint8)
         mask_red = cv2.morphologyEx(mask_red, cv2.MORPH_CLOSE, kernel, iterations=2)
         mask_red = cv2.morphologyEx(mask_red, cv2.MORPH_OPEN,  kernel, iterations=1)
 
-        # Contours du rouge
         contours, _ = cv2.findContours(mask_red, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
         boxes = []
         for cnt in contours:
             area = cv2.contourArea(cnt)
@@ -119,25 +84,18 @@ def detect_speed_limit_candidates(frame_bgr: np.ndarray):
             perim = cv2.arcLength(cnt, True)
             if perim < _MIN_PERIM:
                 continue
-
-            circ = _circularity(area, perim)
-            if circ < _MIN_CIRCULARITY:
+            if _circularity(area, perim) < _MIN_CIRCULARITY:
                 continue
 
-            # Cercle englobant
             (cx, cy), radius = cv2.minEnclosingCircle(cnt)
             if radius < 14:
                 continue
 
             x, y, w, h = cv2.boundingRect(cnt)
 
-            # Vérifie qu'il y a un cœur "blanc" (faible saturation, forte valeur) à l'intérieur
-            # Crée un masque de disque intérieur (60% du rayon)
-            inner_radius = max(int(radius * 0.6), 8)
-            center = (int(cx), int(cy))
+            # Vérifie un « cœur blanc »
             h_img, w_img = hsv.shape[:2]
-
-            # ROI sécurisée autour du cercle
+            inner_radius = max(int(radius * 0.6), 8)
             x0 = max(int(cx - inner_radius), 0)
             y0 = max(int(cy - inner_radius), 0)
             x1 = min(int(cx + inner_radius), w_img - 1)
@@ -151,74 +109,59 @@ def detect_speed_limit_candidates(frame_bgr: np.ndarray):
 
             sat = roi_hsv[:, :, 1]
             val = roi_hsv[:, :, 2]
-            # Moyennes pondérées par le masque intérieur
             inner_pixels = mask_inner > 0
             if inner_pixels.sum() == 0:
                 continue
-
             mean_sat = float(sat[inner_pixels].mean())
             mean_val = float(val[inner_pixels].mean())
-
-            looks_white_inside = (mean_sat <= _SAT_MAX_WHITE and mean_val >= _VAL_MIN_WHITE)
-            if not looks_white_inside:
+            if not (mean_sat <= _SAT_MAX_WHITE and mean_val >= _VAL_MIN_WHITE):
                 continue
 
             boxes.append((x, y, w, h))
 
+        # Fallback Hough si vide (souvent utile en faible lumière)
         if not boxes:
-            gv = v  # canal V du HSV après CLAHE
-            gv = cv2.GaussianBlur(gv, (9,9), 2)
-            circles = cv2.HoughCircles(gv, cv2.HOUGH_GRADIENT, dp=1.2, minDist=40,
-                               param1=80, param2=25, minRadius=14, maxRadius=180)
+            v = hsv[:, :, 2]
+            v = cv2.GaussianBlur(v, (9,9), 2)
+            circles = cv2.HoughCircles(v, cv2.HOUGH_GRADIENT, dp=1.2, minDist=40,
+                                       param1=80, param2=25, minRadius=14, maxRadius=180)
             if circles is not None:
                 for (cx, cy, r) in np.round(circles[0, :]).astype(int):
-                    # Vérifie juste "anneau rouge" approximatif: ratio rouge>vert/bleu sur l’anneau
                     y0, y1 = max(0, cy-r), min(hsv.shape[0], cy+r)
                     x0, x1 = max(0, cx-r), min(hsv.shape[1], cx+r)
                     roi = frame_bgr[y0:y1, x0:x1]
-                    if roi.size == 0: 
+                    if roi.size == 0:
                         continue
                     b, g, rch = cv2.split(roi)
                     if float(rch.mean()) > 1.15*float(g.mean()) and float(rch.mean()) > 1.15*float(b.mean()):
                         boxes.append((x0, y0, x1-x0, y1-y0))
-
         return boxes
     except Exception:
-        # Sécurité : en cas d'erreur, on ne bloque pas le flux
         return []
 
-import os
-from datetime import datetime
-
+# ========= OCR ===============================================================
+# Dossier snapshots
 SNAP_DIR = os.path.join(os.getcwd(), "snapshots_speed_sign")
 os.makedirs(SNAP_DIR, exist_ok=True)
 
-# Anti-spam simple : délai minimal entre deux captures (en secondes)
-CAPTURE_COOLDOWN_S = 2.0
-_last_capture_ts = 0.0
-# OCR async
+# Exécuteur OCR
 _OCR_EXEC = ThreadPoolExecutor(max_workers=1)
-_ocr_inflight = False
 
-def _quick_compress_to_b64_jpeg(path: str) -> Optional[str]:
-    """
-    Charge l'image, convertit en niveaux de gris, redimensionne à max 320px,
-    encode en JPEG qualité 60, renvoie une data URL prête à envoyer.
-    """
+# Charge variables d’environnement (.env)
+load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def _quick_compress_to_b64_jpeg(img_bgr: np.ndarray, max_side: int = 320) -> Optional[str]:
+    """Convertit un BGR en JPEG base64 (data URL), en niveaux de gris et réduit."""
     try:
-        img = cv2.imread(path)
-        if img is None:
-            return None
-        # niveaux de gris -> 1 canal (moins d'entropie) puis retour BGR pour jpg
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
         h, w = gray.shape[:2]
-        max_side = max(h, w)
-        if max_side > 320:
-            scale = 320.0 / max_side
-            new_w = max(1, int(w * scale))
-            new_h = max(1, int(h * scale))
-            gray = cv2.resize(gray, (new_w, new_h), interpolation=cv2.INTER_AREA)
-        # Remet en 3 canaux pour encode JPEG classique
+        scale = 1.0
+        if max(h, w) > max_side:
+            scale = max_side / float(max(h, w))
+        new_w = max(1, int(w * scale))
+        new_h = max(1, int(h * scale))
+        gray = cv2.resize(gray, (new_w, new_h), interpolation=cv2.INTER_AREA)
         gray3 = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
         ok, buff = cv2.imencode(".jpg", gray3, [int(cv2.IMWRITE_JPEG_QUALITY), 60])
         if not ok:
@@ -228,71 +171,228 @@ def _quick_compress_to_b64_jpeg(path: str) -> Optional[str]:
     except Exception:
         return None
 
-def _ocr_job(image_path: str):
-    """Tâche exécutée dans le thread pool : prépare l'image et appelle l'IA."""
-    global _ocr_inflight
+def _ocr_number_from_data_url(data_url: str) -> Optional[int]:
+    """
+    Envoie l’image (data URL) au modèle vision et extrait un entier 1–3 chiffres.
+    """
     try:
-        data_url = _quick_compress_to_b64_jpeg(image_path)
-        if not data_url:
-            if DEBUG: print("[OCR] Prétraitement/encodage échoué.")
-            return
-        _analyze_speed_sign_and_set_limit_from_data_url(data_url)
-    finally:
-        _ocr_inflight = False  # libère le slot même si erreur
-
-def _enqueue_ocr(image_path: str):
-    """Si pas déjà en cours, programme un OCR en arrière-plan."""
-    global _ocr_inflight
-    if _ocr_inflight:
-        return
-    _ocr_inflight = True
-    _OCR_EXEC.submit(_ocr_job, image_path)
-
-
-def _maybe_save_crop(frame: np.ndarray, bbox):
-    global _last_capture_ts
-    try:
-        x, y, w, h = bbox
-        h_img, w_img = frame.shape[:2]
-        x0 = max(0, x)
-        y0 = max(0, y)
-        x1 = min(w_img, x + w)
-        y1 = min(h_img, y + h)
-        if x1 <= x0 or y1 <= y0:
-            return
-        crop = frame[y0:y1, x0:x1].copy()
-
-        # Cooldown
-        now = datetime.now().timestamp()
-        if (now - _last_capture_ts) < CAPTURE_COOLDOWN_S:
-            return
-        _last_capture_ts = now
-
-        # Nom horodaté
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        filename = os.path.join(SNAP_DIR, f"speed_sign.jpg")
-        ok = cv2.imwrite(filename, crop)
-        if not ok:
-            if DEBUG:
-                print("[OCR] Échec d'écriture du fichier image.")
-            return
-
-        # ➜ Analyse immédiate + mise à jour de la limite
-        #_analyze_speed_sign_and_set_limit(filename)
-        _enqueue_ocr(filename) 
-
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "Lis UNIQUEMENT le nombre sur le panneau de limitation de vitesse."},
+                    {"type": "image_url", "image_url": {"url": data_url}},
+                ],
+            }],
+            max_tokens=8,
+        )
+        txt = (resp.choices[0].message.content or "").strip()
+        m = re.search(r"\b(\d{1,3})\b", txt)
+        if not m:
+            return None
+        return int(m.group(1))
     except Exception as e:
-        if DEBUG:
-            print(f"[OCR] Erreur _maybe_save_crop: {e}")
-        pass
+        if DEBUG: print(f"[OCR] Erreur OCR: {e}")
+        return None
 
-# Charge les variables du fichier .env à la racine du projet
-load_dotenv()
+# ========= Caméra (flux) =====================================================
+CAM_INDEX_CANDIDATES = [0, 1]
+WIDTH, HEIGHT, FPS = 640, 480, 30
+cap = None
+cap_lock = Lock()
 
+# Dernier frame disponible pour capture manuelle
+_last_frame = None
+_last_frame_lock = Lock()
+
+def open_camera():
+    """Ouvre la caméra avec MJPG et applique WIDTH/HEIGHT/FPS."""
+    for idx in CAM_INDEX_CANDIDATES:
+        c = cv2.VideoCapture(idx)
+        if not c.isOpened():
+            c.release(); continue
+        c.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+        c.set(cv2.CAP_PROP_FRAME_WIDTH,  WIDTH)
+        c.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
+        c.set(cv2.CAP_PROP_FPS, FPS)
+        time.sleep(0.2)
+        ok, _ = c.read()
+        if ok: return c
+        c.release()
+    return None
+
+def ensure_camera():
+    global cap
+    with cap_lock:
+        if cap is None or not cap.isOpened():
+            cap = open_camera()
+    return cap
+
+def release_camera():
+    global cap
+    with cap_lock:
+        if cap is not None:
+            try: cap.release()
+            except Exception: pass
+            cap = None
+
+atexit.register(release_camera)
+
+def generate_frames():
+    """
+    Génère le flux JPEG multipart pour /video_feed.
+    AUCUNE détection/ocr ici → mode MANUEL.
+    Stocke simplement le dernier frame pour /capture_speed_sign.
+    """
+    global _last_frame  # ← AJOUTER CETTE LIGNE
+
+    if ensure_camera() is None:
+        blank = (np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8))
+        ok, buffer = cv2.imencode('.jpg', blank)
+        jpg = buffer.tobytes() if ok else b''
+        yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + jpg + b'\r\n')
+        return
+
+    while True:
+        with cap_lock:
+            if cap is None or not cap.isOpened():
+                break
+            success, frame = cap.read()
+        if not success:
+            release_camera()
+            if ensure_camera() is None:
+                break
+            continue
+
+        # Mémorise ce frame pour la capture manuelle
+        with _last_frame_lock:
+            # on stocke une copie compacte (pour éviter mutation)
+            _last_frame = frame.copy()
+
+        ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+        if not ret:
+            continue
+        jpg = buffer.tobytes()
+        yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + jpg + b'\r\n')
+
+# ========= État vitesse limite + API =========================================
+_speed_limit_value: Optional[float] = None
+_speed_limit_lock = RLock()
+
+def set_speed_limit(value: Optional[Union[int, float]]):
+    """
+    Met à jour la vitesse limite côté serveur (value=None pour effacer).
+    """
+    global _speed_limit_value
+    with _speed_limit_lock:
+        if value is None:
+            _speed_limit_value = None
+        else:
+            try:
+                v = float(value)
+                if v < 0: v = 0
+                if v > 200: v = 200
+                _speed_limit_value = v
+            except Exception:
+                pass
+
+# ========= Flask app / Routes ================================================
 app = Flask(__name__)
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# --- Définition de l'outil que le modèle peut appeler ---
+@app.route('/speed_limit', methods=['GET', 'POST'])
+def speed_limit():
+    """
+    GET  -> { "speed_limit": 50 | null }
+    POST -> body { "value": 50 } (ou { "speed_limit": 50 }) → met à jour.
+    """
+    global _speed_limit_value
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        value = data.get('value', data.get('speed_limit', None))
+        set_speed_limit(value)
+        with _speed_limit_lock:
+            return jsonify({"ok": True, "speed_limit": _speed_limit_value}), 200
+    with _speed_limit_lock:
+        return jsonify({"speed_limit": _speed_limit_value}), 200
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(generate_frames(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/')
+def index():
+    return render_template('simulator.html')
+
+@app.route('/chatbot')
+def chatbot():
+    return render_template('chatbot.html')
+
+@app.route('/simulate', methods=['POST'])
+def simulate():
+    action = request.json.get('action')
+    envoyer_message(action)
+    print(f"Commande envoyée: {action}")
+    return jsonify({"status": "success", "action": action})
+
+# --------- NOUVEAU : capture manuelle + OCR ---------------------------------
+@app.route('/capture_speed_sign', methods=['POST'])
+def capture_speed_sign():
+    # Récupère un snapshot courant
+    with _last_frame_lock:
+        frame = _last_frame.copy() if '_last_frame' in globals() and _last_frame is not None else None
+
+    # 🔧 Fallback: on tente de lire directement la caméra si pas de frame en mémoire
+    if frame is None:
+        if ensure_camera() is not None:
+            for _ in range(3):
+                with cap_lock:
+                    ok, frm = cap.read()
+                if ok and frm is not None:
+                    frame = frm
+                    break
+        if frame is None:
+            return jsonify({"ok": False, "error": "Aucun frame disponible"}), 503
+
+    # Essaie de trouver un panneau pour croper (sinon, image complète)
+    boxes = detect_speed_limit_candidates(frame)
+    used_crop = False
+    roi = frame
+    if boxes:
+        # Choisit le plus grand (souvent le plus fiable)
+        bx = max(boxes, key=lambda b: b[2]*b[3])
+        x, y, w, h = bx
+        h_img, w_img = frame.shape[:2]
+        x0 = max(0, x); y0 = max(0, y)
+        x1 = min(w_img, x + w); y1 = min(h_img, y + h)
+        if x1 > x0 and y1 > y0:
+            roi = frame[y0:y1, x0:x1].copy()
+            used_crop = True
+
+    # Sauvegarde (utile pour debug)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    out_path = os.path.join(SNAP_DIR, f"capture_{ts}{'_crop' if used_crop else ''}.jpg")
+    cv2.imwrite(out_path, roi)
+
+    # OCR (data URL compact)
+    data_url = _quick_compress_to_b64_jpeg(roi)
+    if not data_url:
+        return jsonify({"ok": False, "error": "Encodage image échoué"}), 500
+
+    detected = _ocr_number_from_data_url(data_url)
+    if detected is not None:
+        set_speed_limit(detected)
+
+    return jsonify({
+        "ok": True,
+        "detected": detected,
+        "used_crop": used_crop,
+        "saved_path": out_path
+    }), 200
+
+# ========= Chat (inchangé, avec tool-calling) ================================
 TOOLS = [
     {
         "type": "function",
@@ -324,281 +424,9 @@ TOOLS = [
 
 SYSTEM_PROMPT = (
     "Tu es un assistant en français. "
-    "Quand l'utilisateur exprime une intention de mouvement ou d'action (ex: avancement, reculer, tourner à droite, "
-    "tourner à gauche, klaxonner, clignoter/‘blink’), tu DOIS appeler l'outil "
-    "`send_vehicle_command` avec la commande normalisée correspondante parmi "
-    "['avance','recule','tourne_a_droite','tourne_a_gauche','klaxonne','clignotte'].\n"
-    "Exemples:\n"
-    "- « avance un peu » -> command=avance\n"
-    "- « recule » -> command=recule\n"
-    "- « tourne à droite » -> command=tourne_a_droite\n"
-    "- « fais clignoter la led », « fais blinker la led » -> command=clignotte\n"
-    "Réponds aussi un court message à l'utilisateur. "
-    "Si la demande n'est pas une commande, réponds normalement sans appeler l'outil."
+    "Quand l'utilisateur exprime une intention de mouvement ou d'action, "
+    "tu DOIS appeler l'outil `send_vehicle_command` avec la commande normalisée."
 )
-
-def _analyze_speed_sign_and_set_limit_from_data_url(data_url: str):
-    """
-    Version optimisée qui reçoit directement une data URL (JPEG compressé).
-    Utilise le même prompt strict. Appelle set_speed_limit(...) si un entier (1-3 chiffres) est trouvé.
-    """
-    try:
-        messages = [
-            {"role": "system",
-             "content": "Tu es un extracteur OCR ultra-strict. "
-                        "Réponds UNIQUEMENT le nombre imprimé au centre du panneau (ex: 30). "
-                        "Aucune unité, aucun mot, aucun symbole."},
-        ]
-        user_content = [
-            {"type": "text", "text": "Quel est le nombre sur le panneau ? Réponds uniquement avec ce nombre."},
-            {"type": "image_url", "image_url": {"url": data_url}},
-        ]
-
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0,
-            messages=[{"role": "user", "content": user_content}],
-            max_tokens=5,  # sortie minuscule
-        )
-        txt = (resp.choices[0].message.content or "").strip()
-        m = re.search(r"\b(\d{1,3})\b", txt)
-        if not m:
-            if DEBUG: print(f"[OCR] Réponse non exploitable: {txt!r}")
-            return
-        value = int(m.group(1))
-        set_speed_limit(value)  # protège déjà et borne 0..200 :contentReference[oaicite:3]{index=3}
-        if DEBUG: print(f"[OCR] Limite détectée: {value} -> set_speed_limit({value})")
-    except Exception as e:
-        if DEBUG: print(f"[OCR] Erreur OCR: {e}")
-
-
-def _analyze_speed_sign_and_set_limit(image_path: str):
-    """
-    Envoie l'image du panneau au modèle vision d'OpenAI, récupère le nombre
-    (ex: 30, 50, 110) et met à jour la vitesse limite via set_speed_limit(...).
-    En cas d'échec (pas de nombre détecté), ne change rien.
-    """
-    try:
-        # Encode l'image en data URL (base64) pour chat.completions avec image
-        with open(image_path, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode("ascii")
-        data_url = f"data:image/jpeg;base64,{b64}"
-
-        # Invite très stricte: on veut UNIQUEMENT le nombre, sans unité/texte.
-        messages = [
-            {"role": "system",
-             "content": "Tu es un extracteur OCR ultra-strict. "
-                        "Réponds UNIQUEMENT le nombre imprimé au centre du panneau (ex: 30). "
-                        "Aucune unité, aucun mot, aucun symbole."},
-            {"role": "user",
-             "content": [
-                 {"type": "text",
-                  "text": "Quel est le nombre sur le panneau ? Réponds uniquement avec ce nombre."},
-                 {"type": "image_url", "image_url": {"url": data_url}}
-             ]}
-        ]
-
-        # Utilise un modèle vision (gpt-4o-mini convient très bien pour l'OCR simple)
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0,
-            messages=messages
-        )
-        txt = (resp.choices[0].message.content or "").strip()
-
-        # Sécurise: on ne garde que le premier entier à 1-3 chiffres
-        m = re.search(r"\b(\d{1,3})\b", txt)
-        if not m:
-            if DEBUG:
-                print(f"[OCR] Rien d'exploitable dans la réponse: {txt!r}")
-            return
-
-        value = int(m.group(1))
-        # Mets à jour la limite (ta fonction borne déjà 0..200) :contentReference[oaicite:1]{index=1}
-        set_speed_limit(value)
-
-        if DEBUG:
-            print(f"[OCR] Limite détectée: {value} km/h -> set_speed_limit({value})")
-
-    except Exception as e:
-        if DEBUG:
-            print(f"[OCR] Erreur analyse panneau: {e}")
-
-
-#---- Paramètres caméra (adapte si besoin) ----
-CAM_INDEX_CANDIDATES = [0, 1]       # essaie /dev/video0 puis /dev/video1
-WIDTH, HEIGHT = 640, 480            # 1280x720 marche aussi si MJPG
-FPS = 30
-
-cap = None
-cap_lock = Lock()
-
-def open_camera():
-    """Ouvre la caméra USB avec V4L2 + MJPG, et applique largeur/hauteur/FPS."""
-    global cap
-    # Essaie plusieurs index au cas où /dev/video1 serait utilisé
-    for idx in CAM_INDEX_CANDIDATES:
-        c = cv2.VideoCapture(idx)  # backend V4L2 sur RPi
-        if not c.isOpened():
-            c.release()
-            continue
-
-        # FourCC MJPG (évite la conversion CPU YUYV -> BGR)
-        c.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
-        c.set(cv2.CAP_PROP_FRAME_WIDTH,  WIDTH)
-        c.set(cv2.CAP_PROP_FRAME_HEIGHT, HEIGHT)
-        c.set(cv2.CAP_PROP_FPS, FPS)
-
-        # Petit délai pour que les réglages s’appliquent
-        time.sleep(0.2)
-
-        # Vérifie qu’on lit bien une image
-        ok, _ = c.read()
-        if ok:
-            return c
-        c.release()
-    return None
-
-def ensure_camera():
-    """(Ré)ouvre la caméra si besoin, thread-safe."""
-    global cap
-    with cap_lock:
-        if cap is None or not cap.isOpened():
-            cap = open_camera()
-    return cap
-
-def release_camera():
-    global cap
-    with cap_lock:
-        if cap is not None:
-            try:
-                cap.release()
-            except Exception:
-                pass
-            cap = None
-
-atexit.register(release_camera)
-
-def generate_frames():
-    """Génère un flux MJPEG pour /video_feed."""
-    # S’assure que la caméra est prête
-    if ensure_camera() is None:
-        # Renvoie un unique cadre noir si échec (pour feedback)
-        import numpy as np
-        blank = (np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8))
-        ok, buffer = cv2.imencode('.jpg', blank)
-        jpg = buffer.tobytes() if ok else b''
-        yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + jpg + b'\r\n')
-        return
-
-    while True:
-        
-        with cap_lock:
-            if cap is None or not cap.isOpened():
-                break
-            success, frame = cap.read()
-
-            if ENABLE_SPEED_SIGN_DETECT:
-                boxes = detect_speed_limit_candidates(frame)
-                for (x, y, w, h) in boxes:
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                    cv2.putText(frame, "Limitation (probable)", (x, max(0, y - 8)),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, cv2.LINE_AA)
-                    _maybe_save_crop(frame, (x, y, w, h))
-
-            #ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
-            #if not ret:
-            #    continue
-            #jpg = buffer.tobytes()
-            #yield (b'--frame\r\n'
-            #    b'Content-Type: image/jpeg\r\n\r\n' + jpg + b'\r\n')
-
-        if not success:
-            # Tentative de reconnexion (caméra débranchée/rebranchée)
-            release_camera()
-            if ensure_camera() is None:
-                break
-            continue
-
-        # Ré-encodage JPEG (rapide si source est MJPG)
-        ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
-        if not ret:
-            continue
-        jpg = buffer.tobytes()
-
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + jpg + b'\r\n')
-
-# --- ajoute près des autres imports/globals ---
-from threading import RLock
-
-# Valeur de vitesse limite + verrou
-_speed_limit_value = None
-_speed_limit_lock = RLock()
-
-def set_speed_limit(value: Optional[Union[int, float]]):
-    """
-    Met à jour la vitesse limite côté serveur (utilisable depuis n'importe quel code Python).
-    value=None permet d'effacer/mettre '—'.
-    """
-    global _speed_limit_value
-    with _speed_limit_lock:
-        if value is None:
-            _speed_limit_value = None
-        else:
-            try:
-                v = float(value)
-                # garde dans un intervalle raisonnable (optionnel)
-                if v < 0: v = 0
-                if v > 200: v = 200
-                _speed_limit_value = v
-            except Exception:
-                # si non convertible, on ignore
-                pass
-
-@app.route('/speed_limit', methods=['GET', 'POST'])
-def speed_limit():
-    """
-    GET  -> renvoie la vitesse limite courante: { "speed_limit": 50 } ou null
-    POST -> met à jour via JSON: { "value": 50 } ou { "speed_limit": 50 }
-    """
-    global _speed_limit_value
-    if request.method == 'POST':
-        data = request.get_json(silent=True) or {}
-        value = data.get('value', data.get('speed_limit', None))
-        set_speed_limit(value)
-        with _speed_limit_lock:
-            return jsonify({"ok": True, "speed_limit": _speed_limit_value}), 200
-
-    # GET
-    with _speed_limit_lock:
-        return jsonify({"speed_limit": _speed_limit_value}), 200
-
-@app.route('/video_feed')
-def video_feed():
-    return Response(generate_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
-
-@app.route('/')
-def index():
-    return render_template('simulator.html')
-
-@app.route('/chatbot')
-def chatbot():
-    return render_template('chatbot.html')
-
-@app.route('/simulate', methods=['POST'])
-def simulate():
-    action = request.json.get('action')
-    #sock.send(action+ '\n')
-
-    if DEBUG:
-        pass
-    else:
-        envoyer_message(action)
-    
-    print(f"Commande envoyée: {action}")
-    return jsonify({"status": "success", "action": action})
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -607,7 +435,6 @@ def chat():
     if not user_message:
         return jsonify({"error": "message manquant"}), 400
 
-    # Appel du modèle avec tool calling
     completion = client.chat.completions.create(
         model="gpt-4o",
         temperature=0.2,
@@ -621,9 +448,8 @@ def chat():
     msg = completion.choices[0].message
     reply_text = (msg.content or "").strip()
 
-    # Exécuter toutes les tool calls retournées (s'il y en a)
-    commandes_envoyees = []
     tool_calls = getattr(msg, "tool_calls", None) or []
+    commandes_envoyees = []
     for call in tool_calls:
         if call.type == "function" and call.function and call.function.name == "send_vehicle_command":
             try:
@@ -631,15 +457,13 @@ def chat():
                 cmd = args.get("command")
                 if cmd:
                     try:
-                        envoyer_message(cmd)  # <-- ta fonction
+                        envoyer_message(cmd)
                     except NameError:
-                        # En dev si la fonction n'est pas importée
                         print(f"[WARN] envoyer_message(...) non défini. Aurait envoyé: {cmd}")
                     commandes_envoyees.append(cmd)
-            except Exception as parse_err:
-                print(f"[ERR] parse tool args: {parse_err}")
+            except Exception as e:
+                print(f"[ERR] parse tool args: {e}")
 
-    # Si le modèle n'a pas parlé (contenu vide), on renvoie au moins un accusé
     if not reply_text and commandes_envoyees:
         reply_text = f"Commande envoyée : {', '.join(commandes_envoyees)}."
 
@@ -648,6 +472,6 @@ def chat():
         "commandes_envoyees": commandes_envoyees or None
     }), 200
 
+# ========= Lancement =========================================================
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
-
