@@ -42,19 +42,31 @@ PORT = 1  # Le port RFCOMM standard
 ENABLE_SPEED_SIGN_DETECT = True
 
 # Seuils HSV pour le rouge (anneau rouge du panneau)
-_LOWER_RED_1 = np.array([0, 70, 50])
-_UPPER_RED_1 = np.array([10, 255, 255])
-_LOWER_RED_2 = np.array([170, 70, 50])
-_UPPER_RED_2 = np.array([180, 255, 255])
+#_LOWER_RED_1 = np.array([0, 70, 50])
+#_UPPER_RED_1 = np.array([10, 255, 255])
+#_LOWER_RED_2 = np.array([170, 70, 50])
+#_UPPER_RED_2 = np.array([180, 255, 255])
 
 # Seuils d'"intérieur blanc" (faible saturation, forte luminosité)
-_SAT_MAX_WHITE = 60
-_VAL_MIN_WHITE = 160
+#_SAT_MAX_WHITE = 60
+#_VAL_MIN_WHITE = 160
+
+_LOWER_RED_1 = np.array([0, 40, 40])
+_UPPER_RED_1 = np.array([12, 255, 255])
+_LOWER_RED_2 = np.array([168, 40, 40])
+_UPPER_RED_2 = np.array([180, 255, 255])
+
+_SAT_MAX_WHITE = 80      # tolère un blanc un peu “sale”
+_VAL_MIN_WHITE = 140     # baisse la barre en faible lumière
 
 # Contraintes géométriques
-_MIN_AREA = 800          # taille minimale du contour
-_MIN_PERIM = 100         # périmètre minimal
-_MIN_CIRCULARITY = 0.5   # 1.0 = cercle parfait
+#_MIN_AREA = 800          # taille minimale du contour
+#_MIN_PERIM = 100         # périmètre minimal
+#_MIN_CIRCULARITY = 0.5   # 1.0 = cercle parfait
+
+_MIN_AREA = 500
+_MIN_PERIM = 80
+_MIN_CIRCULARITY = 0.35   # au lieu de 0.5
 
 
 def _circularity(area: float, perim: float) -> float:
@@ -71,6 +83,19 @@ def detect_speed_limit_candidates(frame_bgr: np.ndarray):
     try:
         # Lissage léger pour réduire le bruit
         img = cv2.GaussianBlur(frame_bgr, (5, 5), 0)
+        # Denoise doux + unsharp mask + boost du V (CLAHE) pour faible lumière
+        img = cv2.bilateralFilter(frame_bgr, d=7, sigmaColor=60, sigmaSpace=60)
+
+        # Unsharp mask
+        blur = cv2.GaussianBlur(img, (0, 0), 1.2)
+        img = cv2.addWeighted(img, 1.6, blur, -0.6, 0)
+
+        # Passe en HSV et applique CLAHE sur V
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        h, s, v = cv2.split(hsv)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        v = clahe.apply(v)
+        hsv = cv2.merge([h, s, v])
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
         # Masque rouge (deux plages HSV pour couvrir le wrap 0°/180°)
@@ -79,7 +104,7 @@ def detect_speed_limit_candidates(frame_bgr: np.ndarray):
         mask_red = cv2.bitwise_or(mask1, mask2)
 
         # Nettoyage morphologique
-        kernel = np.ones((5, 5), np.uint8)
+        kernel = np.ones((7, 7), np.uint8)   # au lieu de (5,5)
         mask_red = cv2.morphologyEx(mask_red, cv2.MORPH_CLOSE, kernel, iterations=2)
         mask_red = cv2.morphologyEx(mask_red, cv2.MORPH_OPEN,  kernel, iterations=1)
 
@@ -101,7 +126,7 @@ def detect_speed_limit_candidates(frame_bgr: np.ndarray):
 
             # Cercle englobant
             (cx, cy), radius = cv2.minEnclosingCircle(cnt)
-            if radius < 12:  # évite les mini faux-positifs
+            if radius < 14:
                 continue
 
             x, y, w, h = cv2.boundingRect(cnt)
@@ -139,6 +164,23 @@ def detect_speed_limit_candidates(frame_bgr: np.ndarray):
                 continue
 
             boxes.append((x, y, w, h))
+
+        if not boxes:
+            gv = v  # canal V du HSV après CLAHE
+            gv = cv2.GaussianBlur(gv, (9,9), 2)
+            circles = cv2.HoughCircles(gv, cv2.HOUGH_GRADIENT, dp=1.2, minDist=40,
+                               param1=80, param2=25, minRadius=14, maxRadius=180)
+            if circles is not None:
+                for (cx, cy, r) in np.round(circles[0, :]).astype(int):
+                    # Vérifie juste "anneau rouge" approximatif: ratio rouge>vert/bleu sur l’anneau
+                    y0, y1 = max(0, cy-r), min(hsv.shape[0], cy+r)
+                    x0, x1 = max(0, cx-r), min(hsv.shape[1], cx+r)
+                    roi = frame_bgr[y0:y1, x0:x1]
+                    if roi.size == 0: 
+                        continue
+                    b, g, rch = cv2.split(roi)
+                    if float(rch.mean()) > 1.15*float(g.mean()) and float(rch.mean()) > 1.15*float(b.mean()):
+                        boxes.append((x0, y0, x1-x0, y1-y0))
 
         return boxes
     except Exception:
