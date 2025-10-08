@@ -1,5 +1,5 @@
-# app.py — mode MANUEL : capture sur bouton, puis OCR → set_speed_limit
-from flask import Flask, render_template, request, jsonify, Response
+# app.py — version avec /snap et description SANS LIMITE
+from flask import Flask, render_template, request, jsonify, Response, send_file  # >>> CHANGEMENT (send_file)
 import cv2
 import atexit
 import time
@@ -119,7 +119,7 @@ def detect_speed_limit_candidates(frame_bgr: np.ndarray):
 
             boxes.append((x, y, w, h))
 
-        # Fallback Hough si vide (souvent utile en faible lumière)
+        # Fallback Hough si vide (utile en faible lumière)
         if not boxes:
             v = hsv[:, :, 2]
             v = cv2.GaussianBlur(v, (9,9), 2)
@@ -139,7 +139,7 @@ def detect_speed_limit_candidates(frame_bgr: np.ndarray):
     except Exception:
         return []
 
-# ========= OCR ===============================================================
+# ========= OCR & Vision ======================================================
 # Dossier snapshots
 SNAP_DIR = os.path.join(os.getcwd(), "snapshots_speed_sign")
 os.makedirs(SNAP_DIR, exist_ok=True)
@@ -171,10 +171,27 @@ def _quick_compress_to_b64_jpeg(img_bgr: np.ndarray, max_side: int = 320) -> Opt
     except Exception:
         return None
 
+def _img_path_to_data_url(path: str, max_side: int = 512) -> Optional[str]:
+    """Lit une image disque et la compresse en data URL JPEG couleur."""
+    try:
+        img = cv2.imread(path, cv2.IMREAD_COLOR)
+        if img is None:
+            return None
+        h, w = img.shape[:2]
+        scale = 1.0
+        if max(h, w) > max_side:
+            scale = max_side / float(max(h, w))
+            img = cv2.resize(img, (int(w*scale), int(h*scale)), interpolation=cv2.INTER_AREA)
+        ok, buff = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+        if not ok:
+            return None
+        b64 = base64.b64encode(buff.tobytes()).decode("ascii")
+        return f"data:image/jpeg;base64,{b64}"
+    except Exception:
+        return None
+
 def _ocr_number_from_data_url(data_url: str) -> Optional[int]:
-    """
-    Envoie l’image (data URL) au modèle vision et extrait un entier 1–3 chiffres.
-    """
+    """Envoie l’image (data URL) au modèle vision et extrait un entier 1–3 chiffres."""
     try:
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -196,6 +213,13 @@ def _ocr_number_from_data_url(data_url: str) -> Optional[int]:
     except Exception as e:
         if DEBUG: print(f"[OCR] Erreur OCR: {e}")
         return None
+
+def _limit_to_5_words(text: str) -> str:
+    """Coupe proprement à 5 mots maximum (espaces multiples tolérés)."""
+    if not text:
+        return "—"
+    words = re.findall(r"\S+", text.strip())
+    return " ".join(words[:5]) if words else "—"
 
 # ========= Caméra (flux) =====================================================
 CAM_INDEX_CANDIDATES = [0, 1]
@@ -246,7 +270,7 @@ def generate_frames():
     AUCUNE détection/ocr ici → mode MANUEL.
     Stocke simplement le dernier frame pour /capture_speed_sign.
     """
-    global _last_frame  # ← AJOUTER CETTE LIGNE
+    global _last_frame
 
     if ensure_camera() is None:
         blank = (np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8))
@@ -268,7 +292,6 @@ def generate_frames():
 
         # Mémorise ce frame pour la capture manuelle
         with _last_frame_lock:
-            # on stocke une copie compacte (pour éviter mutation)
             _last_frame = frame.copy()
 
         ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
@@ -282,9 +305,7 @@ _speed_limit_value: Optional[float] = None
 _speed_limit_lock = RLock()
 
 def set_speed_limit(value: Optional[Union[int, float]]):
-    """
-    Met à jour la vitesse limite côté serveur (value=None pour effacer).
-    """
+    """Met à jour la vitesse limite côté serveur (value=None pour effacer)."""
     global _speed_limit_value
     with _speed_limit_lock:
         if value is None:
@@ -337,14 +358,14 @@ def simulate():
     print(f"Commande envoyée: {action}")
     return jsonify({"status": "success", "action": action})
 
-# --------- NOUVEAU : capture manuelle + OCR ---------------------------------
+# --------- CAPTURE manuelle + OCR -------------------------------------------
 @app.route('/capture_speed_sign', methods=['POST'])
 def capture_speed_sign():
     # Récupère un snapshot courant
     with _last_frame_lock:
         frame = _last_frame.copy() if '_last_frame' in globals() and _last_frame is not None else None
 
-    # 🔧 Fallback: on tente de lire directement la caméra si pas de frame en mémoire
+    # Fallback: tente de lire directement la caméra si pas de frame en mémoire
     if frame is None:
         if ensure_camera() is not None:
             for _ in range(3):
@@ -359,9 +380,14 @@ def capture_speed_sign():
     # Essaie de trouver un panneau pour croper (sinon, image complète)
     boxes = detect_speed_limit_candidates(frame)
     used_crop = False
+    # Sauvegarde le FULL frame
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    full_path = os.path.join(SNAP_DIR, f"capture_{ts}_full.jpg")
+    cv2.imwrite(full_path, frame)
+
+    # Sauvegarde le ROI (crop si trouvé, sinon image complète)
     roi = frame
     if boxes:
-        # Choisit le plus grand (souvent le plus fiable)
         bx = max(boxes, key=lambda b: b[2]*b[3])
         x, y, w, h = bx
         h_img, w_img = frame.shape[:2]
@@ -371,16 +397,13 @@ def capture_speed_sign():
             roi = frame[y0:y1, x0:x1].copy()
             used_crop = True
 
-    # Sauvegarde (utile pour debug)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    out_path = os.path.join(SNAP_DIR, f"capture_{ts}{'_crop' if used_crop else ''}.jpg")
-    cv2.imwrite(out_path, roi)
+    crop_path = os.path.join(SNAP_DIR, f"capture_{ts}{'_crop' if used_crop else ''}.jpg")
+    cv2.imwrite(crop_path, roi)
 
-    # OCR (data URL compact)
+    # OCR sur le ROI
     data_url = _quick_compress_to_b64_jpeg(roi)
     if not data_url:
         return jsonify({"ok": False, "error": "Encodage image échoué"}), 500
-
     detected = _ocr_number_from_data_url(data_url)
     if detected is not None:
         set_speed_limit(detected)
@@ -389,8 +412,144 @@ def capture_speed_sign():
         "ok": True,
         "detected": detected,
         "used_crop": used_crop,
-        "saved_path": out_path
+        "saved_path": crop_path,   # pour /describe_image (ROI)
+        "full_path": full_path,    # pour affichage dans le chat via /snap
+        "frame_size": {"w": int(frame.shape[1]), "h": int(frame.shape[0])}
     }), 200
+
+
+# --------- NOUVEAU : servir l'image capturée de façon sûre -------------------
+@app.route('/snap', methods=['GET'])  # >>> CHANGEMENT (NOUVELLE ROUTE)
+def snap():
+    """
+    GET /snap?path=<chemin absolu vers image dans SNAP_DIR>
+    Sert uniquement des fichiers contenus dans SNAP_DIR.
+    """
+    raw = (request.args.get('path') or '').strip()
+    if not raw:
+        return "path manquant", 400
+
+    try:
+        abs_path = os.path.realpath(raw)
+        root = os.path.realpath(SNAP_DIR)
+        # Autorise SNAP_DIR lui-même (listing refusé) ou un chemin strictement dessous
+        if abs_path != root and not abs_path.startswith(root + os.sep):
+            return "Chemin non autorisé", 403
+        if not os.path.exists(abs_path) or not os.path.isfile(abs_path):
+            return "Fichier introuvable", 404
+    except Exception:
+        return "Chemin invalide", 400
+
+    # Déduit un mimetype basique (jpeg par défaut)
+    mimetype = "image/jpeg"
+    if abs_path.lower().endswith(".png"):
+        mimetype = "image/png"
+    elif abs_path.lower().endswith(".webp"):
+        mimetype = "image/webp"
+
+    return send_file(abs_path, mimetype=mimetype, as_attachment=False, download_name=os.path.basename(abs_path))
+
+
+# --------- DESCRIPTION IA : réponse COMPLÈTE (plus de limite) ---------------
+# --------- DESCRIPTION IA : réponse COMPLÈTE (chat) OU 5 MOTS (simulateur) --
+@app.route('/describe_image', methods=['POST'])
+def describe_image():
+    """
+    Reçoit { "path": "<chemin image>" } et renvoie { ok, description, data_url?, description_full? }.
+
+    Comportement par défaut :
+      - Appels depuis /chatbot (referer contient 'chatbot')  -> description complète
+      - Appels depuis / (simulator.html) (referer contient 'simulator') -> limité à 5 mots
+      - Sinon -> complète
+
+    Overrides possibles :
+      - JSON: {"brief": true} ou {"mode": "simulator"} force 5 mots
+      - JSON: {"brief": false} ou {"mode": "chat"} force complète
+      - Query params équivalents: ?brief=1 / ?mode=simulator
+    """
+    data = request.get_json(silent=True) or {}
+    path = (data.get("path") or "").strip()
+    if not path:
+        return jsonify({"ok": False, "error": "path manquant"}), 400
+
+    # Sécurité chemin: force dans SNAP_DIR
+    try:
+        abs_path = os.path.abspath(path)
+        root = os.path.abspath(SNAP_DIR)
+        if abs_path != root and not abs_path.startswith(root + os.sep):
+            return jsonify({"ok": False, "error": "Chemin non autorisé"}), 403
+        if not os.path.exists(abs_path):
+            return jsonify({"ok": False, "error": "Fichier introuvable"}), 404
+    except Exception:
+        return jsonify({"ok": False, "error": "Chemin invalide"}), 400
+
+    # Prépare un data URL (sert à la fois au modèle et comme fallback d'affichage)
+    data_url = _img_path_to_data_url(abs_path, max_side=640)
+    if not data_url:
+        return jsonify({"ok": False, "error": "Lecture/encodage image échoué"}), 500
+
+    # Détermination du mode (brief/complet)
+    # 1) Overrides explicites (JSON / query)
+    def to_bool(v):
+        if isinstance(v, bool): return v
+        if isinstance(v, str): return v.strip().lower() in ("1","true","vrai","yes","on")
+        return False
+
+    brief_override = data.get("brief", None)
+    if brief_override is None:
+        brief_override = request.args.get("brief", None)
+    mode = (data.get("mode") or request.args.get("mode") or "").strip().lower()
+
+    brief = None
+    if mode in ("sim", "simulateur", "simulator"):
+        brief = True
+    elif mode in ("chat", "chatbot"):
+        brief = False
+    elif brief_override is not None:
+        brief = to_bool(brief_override)
+
+    # 2) Si pas d'override → heuristique par Referer
+    if brief is None:
+        ref = (request.headers.get("Referer") or "").lower()
+        if "simulator" in ref:
+            brief = True
+        elif "chatbot" in ref:
+            brief = False
+        else:
+            brief = False  # défaut: complet (préserve le comportement du chat)
+
+    # Prompt vision (réponse complète, qu'on tronquera ensuite si besoin)
+    prompt = (
+        "Que vois-tu sur l'image ? Réponds en français, de manière complète et précise. "
+        "Décris les objets, le contexte (route, météo, trafic), les panneaux visibles, "
+        "et toute information pertinente pour la conduite."
+    )
+
+    try:
+        resp = client.chat.completions.create(
+            model="gpt-4o",
+            temperature=0.2,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": data_url}},
+                ],
+            }],
+            max_tokens=800,
+        )
+        description_full = (resp.choices[0].message.content or "").strip()
+        description_out = _limit_to_5_words(description_full) if brief else description_full
+
+        return jsonify({
+            "ok": True,
+            "description": description_out,   # -> ce que consommera le front
+            "data_url": data_url,            # utile pour affichage immédiat
+            "description_full": description_full if brief else None  # debug/optionnel
+        }), 200
+    except Exception as e:
+        if DEBUG: print(f"[Describe] Erreur: {e}")
+        return jsonify({"ok": False, "error": "Échec description"}), 500
 
 # ========= Chat (inchangé, avec tool-calling) ================================
 TOOLS = [

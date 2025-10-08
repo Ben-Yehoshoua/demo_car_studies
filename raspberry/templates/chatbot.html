@@ -1,387 +1,268 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatbot - Drive Simulator Pro</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #333;
-        }
-
-        .header {
-            background: rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .header h1 {
-            color: white;
-            font-weight: 300;
-            font-size: 1.8rem;
-        }
-
-        .nav-tabs {
-            display: flex;
-            gap: 1rem;
-        }
-
-        .nav-tab {
-            padding: 0.5rem 1rem;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            text-decoration: none;
-            border-radius: 20px;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(5px);
-        }
-
-        .nav-tab:hover, .nav-tab.active {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-        }
-
-        .chat-container {
-            max-width: 800px;
-            margin: 2rem auto;
-            height: calc(100vh - 150px);
-            display: flex;
-            flex-direction: column;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            overflow: hidden;
-        }
-
-        .chat-header {
-            background: linear-gradient(135deg, #4299e1, #3182ce);
-            color: white;
-            padding: 1.5rem;
-            text-align: center;
-            position: relative;
-        }
-
-        .chat-header::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
-            animation: shine 3s infinite;
-        }
-
-        .chat-header h2 {
-            font-weight: 300;
-            font-size: 1.5rem;
-            z-index: 1;
-            position: relative;
-        }
-
-        .chatbox {
-            flex: 1;
-            padding: 1.5rem;
-            overflow-y: auto;
-            background: #f8f9fa;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .message {
-            max-width: 70%;
-            padding: 1rem 1.5rem;
-            border-radius: 20px;
-            font-size: 0.95rem;
-            line-height: 1.4;
-            animation: fadeInUp 0.3s ease;
-        }
-
-        .message.user {
-            align-self: flex-end;
-            background: linear-gradient(135deg, #4299e1, #3182ce);
-            color: white;
-            border-bottom-right-radius: 5px;
-        }
-
-        .message.bot {
-            align-self: flex-start;
-            background: white;
-            color: #2d3748;
-            border: 1px solid #e2e8f0;
-            border-bottom-left-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .message.bot::before {
-            content: '🤖';
-            margin-right: 0.5rem;
-        }
-
-        .message.user::before {
-            content: '👤';
-            margin-right: 0.5rem;
-        }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .input-container {
-            padding: 1.5rem;
-            background: white;
-            border-top: 1px solid #e2e8f0;
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .input-message {
-            flex: 1;
-            padding: 1rem 1.5rem;
-            border: 2px solid #e2e8f0;
-            border-radius: 25px;
-            font-size: 1rem;
-            outline: none;
-            transition: all 0.3s ease;
-            background: #f8f9fa;
-        }
-
-        .input-message:focus {
-            border-color: #4299e1;
-            background: white;
-            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
-        }
-
-        .send-btn {
-            padding: 1rem 1.5rem;
-            background: linear-gradient(135deg, #48bb78, #38a169);
-            color: white;
-            border: none;
-            border-radius: 25px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .send-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(72, 187, 120, 0.4);
-        }
-
-        .send-btn:active {
-            transform: translateY(0);
-        }
-
-        .typing-indicator {
-            display: none;
-            align-self: flex-start;
-            padding: 1rem 1.5rem;
-            background: white;
-            border-radius: 20px;
-            border-bottom-left-radius: 5px;
-            border: 1px solid #e2e8f0;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            animation: fadeInUp 0.3s ease;
-        }
-
-        .typing-dots {
-            display: flex;
-            gap: 4px;
-        }
-
-        .typing-dots span {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #cbd5e0;
-            animation: typing 1.4s infinite ease-in-out;
-        }
-
-        .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
-        .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
-
-        @keyframes typing {
-            0%, 80%, 100% {
-                transform: scale(0);
-                opacity: 0.5;
-            }
-            40% {
-                transform: scale(1);
-                opacity: 1;
-            }
-        }
-
-        @keyframes shine {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-
-        .empty-state {
-            text-align: center;
-            color: #718096;
-            font-style: italic;
-            margin-top: 2rem;
-        }
-
-        @media (max-width: 768px) {
-            .chat-container {
-                margin: 1rem;
-                height: calc(100vh - 100px);
-                border-radius: 15px;
-            }
-            
-            .message {
-                max-width: 85%;
-            }
-            
-            .input-container {
-                padding: 1rem;
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chatbot - Drive Simulator Pro</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+      background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+      min-height:100vh;color:#333
+    }
+    .header{
+      background:rgba(0,0,0,.1);backdrop-filter:blur(10px);
+      padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;
+      border-bottom:1px solid rgba(255,255,255,.1)
+    }
+    .header h1{color:#fff;font-weight:300;font-size:1.8rem}
+    .nav-tabs{display:flex;gap:1rem}
+    .nav-tab{
+      padding:.5rem 1rem;background:rgba(255,255,255,.2);color:#fff;text-decoration:none;border-radius:20px;
+      transition:all .3s ease;backdrop-filter:blur(5px)
+    }
+    .nav-tab:hover,.nav-tab.active{background:rgba(255,255,255,.3);transform:translateY(-2px)}
+    .chat-container{
+      max-width:800px;margin:2rem auto;height:calc(100vh - 150px);
+      display:flex;flex-direction:column;background:rgba(255,255,255,.95);border-radius:20px;
+      box-shadow:0 20px 40px rgba(0,0,0,.1);backdrop-filter:blur(10px);overflow:hidden
+    }
+    .chat-header{
+      background:linear-gradient(135deg,#4299e1,#3182ce);color:#fff;padding:1.5rem;text-align:center;position:relative
+    }
+    .chat-header::before{
+      content:'';position:absolute;inset:0;background:linear-gradient(45deg,transparent 30%,rgba(255,255,255,.1) 50%,transparent 70%);
+      animation:shine 3s infinite
+    }
+    .chat-header h2{font-weight:300;font-size:1.5rem;z-index:1;position:relative}
+    .chatbox{
+      flex:1;padding:1.5rem;overflow-y:auto;background:#f8f9fa;display:flex;flex-direction:column;gap:1rem
+    }
+    .message{
+      max-width:75%;padding:1rem 1.25rem;border-radius:18px;font-size:.95rem;line-height:1.4;animation:fadeInUp .25s ease
+    }
+    .message.user{
+      align-self:flex-end;background:linear-gradient(135deg,#4299e1,#3182ce);color:#fff;border-bottom-right-radius:6px
+    }
+    .message.bot{
+      align-self:flex-start;background:#fff;color:#2d3748;border:1px solid #e2e8f0;border-bottom-left-radius:6px;
+      box-shadow:0 2px 4px rgba(0,0,0,.06)
+    }
+    .message .meta{font-size:.75rem;opacity:.6;margin-top:.35rem}
+    .image-card{
+      display:flex;flex-direction:column;gap:.5rem
+    }
+    .image-card img{
+      width:100%;max-width:420px;border-radius:12px;border:1px solid #e2e8f0;
+      box-shadow:0 8px 20px rgba(0,0,0,.06)
+    }
+    @keyframes fadeInUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes typing{0%,80%,100%{transform:scale(0);opacity:.5}40%{transform:scale(1);opacity:1}}
+    @keyframes shine{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+    .typing-indicator{
+      display:none;align-self:flex-start;padding:1rem 1.25rem;background:#fff;border-radius:18px;border-bottom-left-radius:6px;
+      border:1px solid #e2e8f0;box-shadow:0 2px 4px rgba(0,0,0,.06);animation:fadeInUp .25s ease
+    }
+    .typing-dots{display:flex;gap:4px}
+    .typing-dots span{width:8px;height:8px;border-radius:50%;background:#cbd5e0;animation:typing 1.4s infinite ease-in-out}
+    .typing-dots span:nth-child(1){animation-delay:-.32s}
+    .typing-dots span:nth-child(2){animation-delay:-.16s}
+    .input-container{padding:1rem 1.25rem;background:#fff;border-top:1px solid #e2e8f0;display:flex;gap:.75rem;align-items:center}
+    .input-message{
+      flex:1;padding:1rem 1.25rem;border:2px solid #e2e8f0;border-radius:22px;font-size:1rem;outline:none;
+      transition:all .2s ease;background:#f8f9fa
+    }
+    .input-message:focus{border-color:#4299e1;background:#fff;box-shadow:0 0 0 3px rgba(66,153,225,.12)}
+    .send-btn{
+      padding:.9rem 1.25rem;background:linear-gradient(135deg,#48bb78,#38a169);color:#fff;border:none;border-radius:22px;
+      cursor:pointer;font-weight:600;transition:all .15s ease;display:flex;align-items:center;gap:.5rem
+    }
+    .send-btn:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(72,187,120,.35)}
+    .empty-state{text-align:center;color:#718096;font-style:italic;margin-top:1rem}
+    @media (max-width:768px){
+      .chat-container{margin:1rem;height:calc(100vh - 100px);border-radius:15px}
+      .message{max-width:88%}
+      .image-card img{max-width:100%}
+    }
+  </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🤖 Drive Simulator Pro</h1>
-        <div class="nav-tabs">
-            <a href="/" class="nav-tab">Simulateur</a>
-            <a href="/chatbot" class="nav-tab active">Chatbot</a>
-        </div>
+  <div class="header">
+    <h1>🤖 Drive Simulator Pro</h1>
+    <div class="nav-tabs">
+      <a href="/" class="nav-tab">Simulateur</a>
+      <a href="/chatbot" class="nav-tab active">Chatbot</a>
+    </div>
+  </div>
+
+  <div class="chat-container">
+    <div class="chat-header">
+      <h2>💬 Assistant de Conduite IA</h2>
     </div>
 
-    <div class="chat-container">
-        <div class="chat-header">
-            <h2>💬 Assistant de Conduite IA</h2>
-        </div>
-        
-        <div class="chatbox" id="chatbox">
-            <div class="empty-state">
-                Bonjour ! Je suis votre assistant de conduite virtuel.<br>
-                Posez-moi vos questions sur la conduite, le code de la route ou le simulateur ! 🚗
-            </div>
-        </div>
-        
-        <div class="typing-indicator" id="typingIndicator">
-            <div class="typing-dots">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-        </div>
-        
-        <div class="input-container">
-            <input type="text" id="inputMessage" class="input-message" placeholder="Tapez votre message ici..." maxlength="500">
-            <button class="send-btn" onclick="sendMessage()">
-                <span>📨</span>
-                Envoyer
-            </button>
-        </div>
+    <div class="chatbox" id="chatbox">
+      <div class="empty-state">
+        Bonjour ! Je suis votre assistant de conduite virtuel.<br/>
+        Dites par exemple : « Que vois-tu ? » pour capturer et décrire l’image. 🚗
+      </div>
     </div>
 
-    <script>
-        const chatbox = document.getElementById('chatbox');
-        const inputMessage = document.getElementById('inputMessage');
-        const typingIndicator = document.getElementById('typingIndicator');
-        let isFirstMessage = true;
+    <div class="typing-indicator" id="typingIndicator">
+      <div class="typing-dots"><span></span><span></span><span></span></div>
+    </div>
 
-        // Gestion de l'envoi avec Enter
-        inputMessage.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
+    <div class="input-container">
+      <input id="inputMessage" class="input-message" placeholder="Tapez votre message ici..." maxlength="500"/>
+      <button class="send-btn" id="sendBtn"><span>📨</span>Envoyer</button>
+    </div>
+  </div>
+
+  <script>
+    const chatbox = document.getElementById('chatbox');
+    const inputMessage = document.getElementById('inputMessage');
+    const typingIndicator = document.getElementById('typingIndicator');
+    const sendBtn = document.getElementById('sendBtn');
+    let isFirstMessage = true;
+
+    // —— UX: Enter pour envoyer
+    inputMessage.addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
+    sendBtn.addEventListener('click', sendMessage);
+
+    // —— Décide si la requête est une intention de capture d'image
+    function isImageCaptureIntent(text){
+      const t = (text || '').toLowerCase().normalize('NFKD');
+      const patterns = [
+        /que vois[-\s]*tu\s*\??$/,
+        /qu'?est-ce qui est (?:a|à) l'?image\s*\??/,
+        /qu'?y a[-\s]*t[-\s]*il (?:a|à) l'?image\s*\??/,
+        /prends?\s*(?:une\s*)?photo/,
+        /capture\s*(?:l|la|une)?\s*image/,
+        /qu'?est-ce que tu vois/i
+      ];
+      return patterns.some(rx => rx.test(t));
+    }
+
+    // —— Helpers UI
+    function addMessage(text, sender='bot'){
+      if (isFirstMessage){ chatbox.innerHTML=''; isFirstMessage=false; }
+      const div = document.createElement('div');
+      div.className = `message ${sender}`;
+      div.textContent = text;
+      chatbox.appendChild(div);
+      chatbox.scrollTop = chatbox.scrollHeight;
+      return div;
+    }
+
+    function addImageCard({src, alt, caption}){
+      const wrap = document.createElement('div');
+      wrap.className = 'message bot';
+      const card = document.createElement('div');
+      card.className = 'image-card';
+
+      const img = document.createElement('img');
+      img.alt = alt || 'Image capturée';
+      if (src) img.src = src;
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = caption || '';
+
+      card.appendChild(img);
+      card.appendChild(meta);
+      wrap.appendChild(card);
+      chatbox.appendChild(wrap);
+      chatbox.scrollTop = chatbox.scrollHeight;
+      return { wrap, img, meta };
+    }
+
+    function showTyping(){ typingIndicator.style.display='block'; chatbox.scrollTop = chatbox.scrollHeight; }
+    function hideTyping(){ typingIndicator.style.display='none'; }
+
+    // —— Flux principal d'envoi
+    async function sendMessage(){
+      const msg = (inputMessage.value || '').trim();
+      if (!msg) return;
+
+      addMessage(msg, 'user');
+      inputMessage.value = '';
+
+      if (isImageCaptureIntent(msg)){
+        showTyping();
+        try{
+          await captureAndDescribe();
+        }catch(err){
+          addMessage("Désolé, la capture d'image a échoué.", 'bot');
+          console.error(err);
+        }finally{
+          hideTyping();
+        }
+        return; // ne pas appeler /chat dans ce cas
+      }
+
+      // Sinon : flux chat normal
+      showTyping();
+      try{
+        const resp = await fetch('/chat', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ message: msg })
         });
+        const data = await resp.json();
+        addMessage(data.reply || 'OK', 'bot');
+      }catch(err){
+        addMessage("Désolé, une erreur s'est produite.", 'bot');
+        console.error(err);
+      }finally{
+        hideTyping();
+      }
+    }
 
-        function sendMessage() {
-            const msg = inputMessage.value.trim();
-            if (!msg) return;
+    // —— Séquence: capture -> affichage image -> description complète
+    async function captureAndDescribe(){
+      // 1) Capture
+      const capResp = await fetch('/capture_speed_sign', {
+        method:'POST',
+        headers:{'Content-Type': 'application/json'},
+        body: JSON.stringify({})
+      });
 
-            // Supprimer le message d'accueil au premier message
-            if (isFirstMessage) {
-                chatbox.innerHTML = '';
-                isFirstMessage = false;
-            }
+      const cap = await capResp.json();
+      if (!capResp.ok || !cap.ok){
+        throw new Error(cap.error || 'Capture échouée');
+      }
 
-            // Ajouter le message utilisateur
-            addMessage(msg, 'user');
-            inputMessage.value = '';
+      // 2) Affiche l'image capturée
+      //    On utilise /snap?path=... (à implémenter côté Python pour servir le fichier).
+      const fullPath = cap.full_path || cap.saved_path;
+      const { img, meta } = addImageCard({
+        src: fullPath ? (`/snap?path=${encodeURIComponent(fullPath)}`) : '',
+        alt: 'Image capturée',
+        caption: 'Image capturée — analyse en cours…'
+      });
 
-            // Afficher l'indicateur de frappe
-            showTypingIndicator();
+      // 3) Demande la description COMPLÈTE au modèle (sans limitation côté Python)
+      const descResp = await fetch('/describe_image', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ path: fullPath || cap.saved_path })
+      });
+      const desc = await descResp.json();
 
-            // Simuler un délai de réponse
-            setTimeout(() => {
-                fetch('/chat', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({message: msg})
-                })
-                .then(resp => resp.json())
-                .then(data => {
-                    hideTypingIndicator();
-                    addMessage(data.reply, 'bot');
-                })
-                .catch(error => {
-                    hideTypingIndicator();
-                    addMessage('Désolé, une erreur s\'est produite. Veuillez réessayer.', 'bot');
-                    console.error('Erreur:', error);
-                });
-            }, 1000 + Math.random() * 1000); // Délai aléatoire entre 1-2s
+      if (!descResp.ok || !desc.ok){
+        meta.textContent = "Échec de la description de l'image.";
+      }else{
+        // Si un futur backend retourne aussi data_url, on met à jour l’aperçu.
+        if (desc.data_url && typeof desc.data_url === 'string'){
+          img.src = desc.data_url; // remplace par un data URL si fourni
         }
+        meta.textContent = desc.description || 'Description indisponible.';
+      }
+    }
 
-        function addMessage(text, sender) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${sender}`;
-            messageDiv.textContent = text;
-            
-            chatbox.appendChild(messageDiv);
-            
-            // Scroll automatique vers le bas
-            chatbox.scrollTop = chatbox.scrollHeight;
-        }
-
-        function showTypingIndicator() {
-            typingIndicator.style.display = 'block';
-            chatbox.scrollTop = chatbox.scrollHeight;
-        }
-
-        function hideTypingIndicator() {
-            typingIndicator.style.display = 'none';
-        }
-
-        // Animation au focus de l'input
-        inputMessage.addEventListener('focus', function() {
-            this.style.transform = 'scale(1.02)';
-        });
-
-        inputMessage.addEventListener('blur', function() {
-            this.style.transform = 'scale(1)';
-        });
-    </script>
+    // —— Petites animations input
+    inputMessage.addEventListener('focus', function(){ this.style.transform='scale(1.02)'; });
+    inputMessage.addEventListener('blur', function(){ this.style.transform='scale(1)'; });
+  </script>
 </body>
 </html>

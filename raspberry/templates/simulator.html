@@ -175,6 +175,11 @@
         <div class="label">Dernière commande</div>
         <div class="value" id="last-command">Aucune</div>
       </section>
+      <!-- NOUVEAU: description IA sous "Dernière commande" -->
+      <section class="info" aria-live="polite" aria-atomic="true">
+        <div class="label">Description image</div>
+        <div class="value" id="img-desc">—</div>
+      </section>
     </aside>
 
     <!-- Center screen -->
@@ -212,7 +217,7 @@
           <button class="dpad-btn dpad-down"  title="Reculer" aria-label="Reculer" onclick="sendAction('recule')">⬇️</button>
         </div>
       </div>
-      <p class="hint">Astuce : utilisez aussi les touches fléchées du clavier.</p>
+      <p class="hint">Astuce : utilisez aussi les touches fléchées du clavier. Touche <strong>C</strong> = Photo panneau.</p>
     </aside>
   </main>
 
@@ -305,7 +310,7 @@
       setTimeout(()=>{ tag.remove(); }, 500);
     }
 
-    // Keyboard support for arrows
+    // Keyboard support for arrows & capture
     window.addEventListener('keydown', (e)=>{
       if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
         e.preventDefault();
@@ -333,7 +338,36 @@
     refreshSpeedLimit();
     setInterval(refreshSpeedLimit, 1000);
 
-    // --- NOUVEAU : capture manuelle du panneau + OCR -----------------------
+    // --- Helpers description IA -------------------------------------------
+    function setImageDescription(text){
+      document.getElementById('img-desc').textContent = text || '—';
+    }
+
+    function limitToFiveWords(text){
+      if(!text) return '—';
+      const words = text.toString().trim().split(/\s+/).filter(Boolean).slice(0,5);
+      return words.join(' ');
+    }
+
+    async function describeImage(savedPath){
+      if(!savedPath){ setImageDescription('—'); return; }
+      setImageDescription('Analyse en cours…');
+      try{
+        const r = await fetch('/describe_image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: savedPath })
+        });
+        const j = await r.json();
+        const raw = (j && (j.description || j.desc || j.text || '')).toString();
+        setImageDescription(limitToFiveWords(raw));
+      }catch(e){
+        console.error(e);
+        setImageDescription('Erreur description');
+      }
+    }
+
+    // --- NOUVEAU : capture manuelle du panneau + OCR + description IA -----
     async function captureSpeedSign(){
       const btn = document.getElementById('btn-capture');
       if(btn.hasAttribute('disabled')) return;
@@ -347,9 +381,10 @@
         const j = await r.json();
         if(!j.ok){
           showToast(j.error ? `Erreur capture: ${j.error}` : 'Échec capture', false);
+          setImageDescription('—');
           return;
         }
-        // Forcer rafraîchissement vitesse côté UI
+        // Rafraîchit vitesse détectée
         await refreshSpeedLimit();
         if(j.detected != null){
           const v = Number(j.detected);
@@ -358,9 +393,12 @@
         }else{
           showToast('Aucun nombre détecté', false);
         }
+        // Demande la description IA (5 mots max côté UI)
+        if(j.saved_path){ await describeImage(j.saved_path); }
       }catch(e){
         console.error(e);
         showToast('Erreur réseau', false);
+        setImageDescription('Erreur description');
       }finally{
         btn.removeAttribute('disabled');
         btn.textContent = original;
