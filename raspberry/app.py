@@ -16,7 +16,7 @@ from typing import Optional, Union
 from datetime import datetime
 
 # ========= Configuration générale ============================================
-DEBUG = True
+DEBUG = False
 
 # Port série pour Arduino (désactivé si DEBUG=True)
 if DEBUG:
