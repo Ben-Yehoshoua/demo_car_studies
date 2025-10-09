@@ -61,27 +61,43 @@
     .lock-btn{border:none;background:transparent;cursor:pointer;font-size:1rem;line-height:1}
     .lock-on{color:var(--danger)} .lock-off{color:var(--success)}
     .perm-hint{font-size:.8rem;color:var(--text-muted);margin-left:.5rem;display:none}
+    /* même logique que sur simulator.html */
+    .header{ display:grid; grid-template-columns:auto 1fr auto; align-items:center; }
+    .center-brand{ justify-self:center; }
+    .brand-logo{ height:32px; width:auto; }
+
   </style>
   <script>window.IS_ADMIN = {{ 'true' if is_admin else 'false' }};</script>
 </head>
 <body>
-  <div class="header">
-    <div class="header-left">
-      <div class="logo"><div class="logo-icon">🚗</div><h1>Drive Simulator Pro</h1></div>
-    </div>
+<div class="header">
+  <div class="header-left">
+    <div class="logo"><div class="logo-icon">🚗</div><h1>Drive Simulator Pro</h1></div>
+  </div>
+
+  <!-- NOUVEAU bloc central -->
+  <div class="center-brand">
+    <img src="/static/logo.png" alt="Logo Drive Simulator Pro" class="brand-logo">
+  </div>
+
+  <!-- Regroupe onglets + chip à droite -->
+  <div class="header-right" style="display:flex;align-items:center;gap:1rem;">
     <div class="nav-tabs">
       <a href="/" class="nav-tab">Simulateur</a>
       <a href="/chatbot" class="nav-tab active">Chatbot</a>
     </div>
     <div class="user-chip" title="Utilisateur connecté">
-      <span class="user-avatar">{{ (user or '?')[:1]|upper }}</span>
-      <span class="user-name">{{ user or 'Invité' }}</span>
-      {% if is_admin %}
-      <span class="user-badge" style="margin-left:.25rem;font-size:.75rem;color:#fff;background:linear-gradient(135deg,#f43f5e,#ec4899);padding:.15rem .45rem;border-radius:999px;font-weight:700;">ADMIN</span>
-      {% endif %}
-      <form class="logout-form" method="post" action="/logout"><button class="logout-btn" type="submit">Déconnexion</button></form>
+        <span class="user-avatar">{{ (user or '?')[:1]|upper }}</span>
+        <span class="user-name">{{ user or 'Invité' }}</span>
+        {% if is_admin %}
+        <span class="user-badge" style="margin-left:.25rem;font-size:.75rem;color:#fff;background:linear-gradient(135deg,#f43f5e,#ec4899);padding:.15rem .45rem;border-radius:999px;font-weight:700;">ADMIN</span>
+        {% endif %}
+        <form class="logout-form" method="post" action="/logout"><button class="logout-btn" type="submit">Déconnexion</button></form>
+      </div>
     </div>
   </div>
+  </div>
+</div>
 
   <div class="chat-container">
     <div class="chat-header"><h2>💬 Assistant de Conduite IA</h2></div>

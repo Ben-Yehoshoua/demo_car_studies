@@ -104,6 +104,7 @@
       padding: 0 1.5rem 1.25rem;
       font-size: .85rem; color: var(--text-muted); text-align: center;
     }
+    .brand-logo{ height:56px; width:auto; }
   </style>
 </head>
 <body>
@@ -111,6 +112,10 @@
     <div class="header">
       <div class="logo-icon">🚗</div>
       <h1>Connexion au simulateur</h1>
+    </div>
+    
+    <div class="brand" style="display:grid;place-items:center;padding:1.25rem 1.5rem 0;">
+        <img src="/static/logo.png" alt="Logo Drive Simulator Pro" class="brand-logo" style="height:56px; width:auto;">
     </div>
 
     <div id="err" class="error{{ ' show' if error else '' }}">{{ error or '' }}</div>
