@@ -6,595 +6,137 @@
   <title>Simulateur Voiture – Mode manuel (capture panneau)</title>
   <style>
     :root {
-      --bg-dark: #f8fafc;
-      --bg-light: #ffffff;
-      --surface: #f1f5f9;
-      --surface-light: #e2e8f0;
-      --primary: #3b82f6;
-      --primary-dark: #2563eb;
-      --secondary: #8b5cf6;
-      --accent: #06b6d4;
-      --success: #10b981;
-      --warning: #f59e0b;
-      --danger: #ef4444;
-      --text-primary: #0f172a;
-      --text-secondary: #475569;
-      --text-muted: #64748b;
-      --border: rgba(15, 23, 42, 0.1);
+      --bg-dark: #f8fafc; --bg-light: #ffffff; --surface: #f1f5f9; --surface-light: #e2e8f0;
+      --primary: #3b82f6; --primary-dark: #2563eb; --secondary: #8b5cf6; --accent: #06b6d4;
+      --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
+      --text-primary: #0f172a; --text-secondary: #475569; --text-muted: #64748b;
+      --border: rgba(15,23,42,.1);
     }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg-dark);min-height:100vh;color:var(--text-primary);line-height:1.6}
+    .header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;background:var(--bg-light);border-bottom:1px solid var(--border);box-shadow:0 4px 6px -1px rgba(0,0,0,.1)}
+    .header-left{display:flex;align-items:center;gap:1rem}
+    .logo{display:flex;align-items:center;gap:.75rem}
+    .logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--primary),var(--secondary));border-radius:10px;display:grid;place-items:center;font-size:1.5rem}
+    .header h1{font-size:1.25rem;font-weight:600;color:var(--text-primary);letter-spacing:-.025em}
+    .nav-tabs{display:flex;gap:.5rem}
+    .nav-tab{text-decoration:none;color:var(--text-secondary);padding:.5rem 1rem;border-radius:8px;transition:.2s;font-weight:500;font-size:.875rem}
+    .nav-tab:hover{background:var(--surface);color:var(--text-primary)}
+    .nav-tab.active{background:var(--primary);color:#fff}
+    .layout{display:grid;grid-template-columns:280px 1fr 340px;gap:1.5rem;padding:1.5rem;height:calc(100vh - 73px)}
+    .panel{background:var(--bg-light);border-radius:16px;border:1px solid var(--border);overflow:hidden}
+    .left{display:flex;flex-direction:column;gap:1rem;padding:1.5rem}
+    .panel-header{display:flex;align-items:center;gap:.5rem;font-size:.875rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);padding-bottom:.75rem;border-bottom:1px solid var(--border)}
+    .info{background:var(--surface);padding:1rem;border-radius:12px;border:1px solid var(--border);transition:.2s}
+    .info:hover{border-color:var(--primary);transform:translateY(-1px)}
+    .label{font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;font-weight:600}
+    .value{font-size:1rem;font-weight:600;color:var(--text-primary);min-height:1.5em}
+    #speed-limit{font-size:1.5rem;color:var(--success)}
+    .screen{position:relative;background:var(--bg-dark);overflow:hidden}
+    .screen img{width:100%;height:100%;object-fit:cover;display:block}
+    .screen-badge{position:absolute;top:1rem;left:1rem;background:rgba(59,130,246,.05);backdrop-filter:blur(10px);color:var(--text-primary);padding:.5rem 1rem;border-radius:8px;font-size:.875rem;font-weight:500;border:1px solid var(--border)}
+    .screen-badge strong{color:var(--accent)}
+    .right{display:flex;flex-direction:column;gap:1.5rem;padding:1.5rem}
+    .quick-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+    .quick{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+    .icon-btn{width:64px;height:64px;border-radius:12px;border:none;cursor:pointer;font-size:1.75rem;box-shadow:0 4px 12px rgba(0,0,0,.3);transition:.2s;display:grid;place-items:center;position:relative;overflow:hidden}
+    .icon-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.1),transparent);opacity:0;transition:opacity .2s}
+    .icon-btn:hover::before{opacity:1}
+    .icon-btn:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.4)}
+    .icon-btn:active{transform:translateY(0)}
+    .icon-btn[disabled]{opacity:.5;cursor:not-allowed;transform:none!important}
+    .icon-btn:nth-child(1){background:linear-gradient(135deg,#f59e0b,#d97706)}
+    .icon-btn.secondary{background:linear-gradient(135deg,#8b5cf6,#7c3aed)}
+    .icon-btn.tertiary{background:linear-gradient(135deg,#10b981,#059669)}
+    .quick small{font-size:.75rem;color:var(--text-muted);font-weight:500}
+    .controller-section{display:flex;flex-direction:column;gap:.75rem}
+    .controller-switch{display:flex;background:var(--surface);border-radius:12px;padding:4px;position:relative;border:1px solid var(--border)}
+    .controller-pill{flex:1;z-index:2;border:none;background:transparent;padding:.75rem;border-radius:8px;cursor:pointer;font-weight:600;color:var(--text-secondary);transition:color .2s;font-size:.875rem}
+    .controller-pill[aria-pressed="true"]{color:var(--text-primary)}
+    .controller-indicator{position:absolute;z-index:1;top:4px;bottom:4px;width:calc(50% - 4px);left:4px;border-radius:8px;background:var(--primary);box-shadow:0 4px 12px rgba(59,130,246,.4);transition:left .3s cubic-bezier(.4,0,.2,1)}
+    .controller-switch.camera .controller-indicator{left:calc(50% + 0px)}
+    .controller-hint{font-size:.75rem;color:var(--text-muted);text-align:center;line-height:1.4}
+    .joystick-wrap{width:240px;height:240px;margin:0 auto;position:relative}
+    .joystick{position:relative;width:100%;height:100%;background:var(--surface);border-radius:50%;box-shadow:inset 0 4px 12px rgba(0,0,0,.3);border:1px solid var(--border)}
+    .dpad-btn{position:absolute;width:68px;height:68px;border-radius:12px;border:none;cursor:pointer;font-size:1.5rem;background:linear-gradient(135deg,var(--primary),var(--primary-dark));display:grid;place-items:center;box-shadow:0 4px 12px rgba(59,130,246,.4);transition:.1s;border:1px solid rgba(255,255,255,.1)}
+    .dpad-btn:hover{transform:scale(1.05);box-shadow:0 6px 16px rgba(59,130,246,.5)}
+    .dpad-btn:active{transform:scale(.95)}
+    .dpad-up{top:8px;left:50%;transform:translateX(-50%)}
+    .dpad-down{bottom:8px;left:50%;transform:translateX(-50%)}
+    .dpad-left{left:8px;top:50%;transform:translateY(-50%)}
+    .dpad-right{right:8px;top:50%;transform:translateY(-50%)}
+    .dpad-up:hover{transform:translateX(-50%) scale(1.05)}
+    .dpad-down:hover{transform:translateX(-50%) scale(1.05)}
+    .dpad-left:hover{transform:translateY(-50%) scale(1.05)}
+    .dpad-right:hover{transform:translateY(-50%) scale(1.05)}
+    .hint{font-size:.75rem;color:var(--text-muted);text-align:center;margin-top:.5rem}
+    .hint strong{color:var(--accent);font-weight:600}
+    .toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:var(--bg-light);border:1px solid var(--border);border-radius:12px;padding:1rem 1.5rem;box-shadow:0 10px 30px rgba(0,0,0,.5);display:none;align-items:center;gap:.75rem;z-index:1000;backdrop-filter:blur(10px)}
+    .flash{animation:pulse .8s ease}@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(16,185,129,.7)}100%{box-shadow:0 0 0 20px rgba(16,185,129,0)}}
+    @media (max-width:1024px){
+      .layout{grid-template-columns:1fr;height:auto;gap:1rem}
+      .screen{order:1;aspect-ratio:16/9;max-height:60vh}
+      .right{order:2}
+      .left{order:3;flex-direction:row;overflow-x:auto;padding:1rem}
+      .left .panel-header{display:none}
+      .left .info{min-width:140px;flex-shrink:0}
+      .quick-actions{grid-template-columns:repeat(3,1fr)}
+      .icon-btn{width:56px;height:56px;font-size:1.5rem}
+      .joystick-wrap{width:200px;height:200px}
+      .dpad-btn{width:56px;height:56px}
+    }
+    .user-chip{display:flex;align-items:center;gap:.6rem;background:var(--bg-light);border:1px solid var(--border);border-radius:999px;padding:.35rem .5rem .35rem .35rem;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    .user-avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;font-weight:700;font-size:.9rem}
+    .user-name{font-weight:600;color:var(--text-primary);font-size:.9rem}
+    .logout-form{margin:0}
+    .logout-btn{border:1px solid var(--border);background:var(--surface);font-size:.8rem;padding:.25rem .55rem;border-radius:8px;cursor:pointer;color:var(--text-secondary);transition:background .15s,transform .1s}
+    .logout-btn:hover{background:var(--surface-light)}
+    .logout-btn:active{transform:translateY(1px)}
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    
-    body {
-      font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      background: var(--bg-dark);
-      min-height: 100vh;
-      color: var(--text-primary);
-      line-height: 1.6;
-    }
-
-    /* Header */
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1rem 1.5rem;
-      background: var(--bg-light);
-      border-bottom: 1px solid var(--border);
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-    
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-    
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-    
-    .logo-icon {
-      width: 40px;
-      height: 40px;
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      border-radius: 10px;
-      display: grid;
-      place-items: center;
-      font-size: 1.5rem;
-    }
-    
-    .header h1 {
-      font-size: 1.25rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      letter-spacing: -0.025em;
-    }
-    
-    .nav-tabs {
-      display: flex;
-      gap: 0.5rem;
-    }
-    
-    .nav-tab {
-      text-decoration: none;
-      color: var(--text-secondary);
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
-      transition: all 0.2s;
-      font-weight: 500;
-      font-size: 0.875rem;
-    }
-    
-    .nav-tab:hover {
-      background: var(--surface);
-      color: var(--text-primary);
-    }
-    
-    .nav-tab.active {
-      background: var(--primary);
-      color: white;
-    }
-
-    /* Layout */
-    .layout {
-      display: grid;
-      grid-template-columns: 280px 1fr 340px;
-      gap: 1.5rem;
-      padding: 1.5rem;
-      height: calc(100vh - 73px);
-    }
-    
-    .panel {
-      background: var(--bg-light);
-      border-radius: 16px;
-      border: 1px solid var(--border);
-      overflow: hidden;
-    }
-
-    /* Left Panel */
-    .left {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      padding: 1.5rem;
-    }
-    
-    .panel-header {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.875rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-      padding-bottom: 0.75rem;
-      border-bottom: 1px solid var(--border);
-    }
-    
-    .info {
-      background: var(--surface);
-      padding: 1rem;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      transition: all 0.2s;
-    }
-    
-    .info:hover {
-      border-color: var(--primary);
-      transform: translateY(-1px);
-    }
-    
-    .label {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.5rem;
-      font-weight: 600;
-    }
-    
-    .value {
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      min-height: 1.5em;
-    }
-    
-    #speed-limit {
-      font-size: 1.5rem;
-      color: var(--success);
-    }
-
-    /* Center Screen */
-    .screen {
-      position: relative;
-      background: var(--bg-dark);
-      overflow: hidden;
-    }
-    
-    .screen video,
-    .screen img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-    
-    .screen-badge {
-      position: absolute;
-      top: 1rem;
-      left: 1rem;
-      background: rgba(59, 130, 246, 0.05);
-      backdrop-filter: blur(10px);
-      color: var(--text-primary);
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
-      font-size: 0.875rem;
-      font-weight: 500;
-      border: 1px solid var(--border);
-    }
-    
-    .screen-badge strong {
-      color: var(--accent);
-    }
-
-    /* Right Panel */
-    .right {
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-      padding: 1.5rem;
-    }
-
-    /* Quick Actions */
-    .quick-actions {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
-    }
-    
-    .quick {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    
-    .icon-btn {
-      width: 64px;
-      height: 64px;
-      border-radius: 12px;
-      border: none;
-      cursor: pointer;
-      font-size: 1.75rem;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-      transition: all 0.2s;
-      display: grid;
-      place-items: center;
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .icon-btn::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-    
-    .icon-btn:hover::before {
-      opacity: 1;
-    }
-    
-    .icon-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-    }
-    
-    .icon-btn:active {
-      transform: translateY(0);
-    }
-    
-    .icon-btn[disabled] {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none !important;
-    }
-    
-    .icon-btn:nth-child(1) {
-      background: linear-gradient(135deg, #f59e0b, #d97706);
-    }
-    
-    .icon-btn.secondary {
-      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-    }
-    
-    .icon-btn.tertiary {
-      background: linear-gradient(135deg, #10b981, #059669);
-    }
-    
-    .quick small {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      font-weight: 500;
-    }
-
-    /* Controller Switch */
-    .controller-section {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-    
-    .controller-switch {
-      display: flex;
-      background: var(--surface);
-      border-radius: 12px;
-      padding: 4px;
-      position: relative;
-      border: 1px solid var(--border);
-    }
-    
-    .controller-pill {
-      flex: 1;
-      position: relative;
-      z-index: 2;
-      border: none;
-      background: transparent;
-      padding: 0.75rem;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: 600;
-      color: var(--text-secondary);
-      transition: color 0.2s;
-      font-size: 0.875rem;
-    }
-    
-    .controller-pill[aria-pressed="true"] {
-      color: var(--text-primary);
-    }
-    
-    .controller-indicator {
-      position: absolute;
-      z-index: 1;
-      top: 4px;
-      bottom: 4px;
-      width: calc(50% - 4px);
-      left: 4px;
-      border-radius: 8px;
-      background: var(--primary);
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    
-    .controller-switch.camera .controller-indicator {
-      left: calc(50% + 0px);
-    }
-    
-    .controller-hint {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      text-align: center;
-      line-height: 1.4;
-    }
-
-    /* Joystick */
-    .joystick-wrap {
-      width: 240px;
-      height: 240px;
-      margin: 0 auto;
-      position: relative;
-    }
-    
-    .joystick {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      background: var(--surface);
-      border-radius: 50%;
-      box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.3);
-      border: 1px solid var(--border);
-    }
-    
-    .dpad-btn {
-      position: absolute;
-      width: 68px;
-      height: 68px;
-      border-radius: 12px;
-      border: none;
-      cursor: pointer;
-      font-size: 1.5rem;
-      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-      display: grid;
-      place-items: center;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-      transition: all 0.1s;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .dpad-btn:hover {
-      transform: scale(1.05);
-      box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
-    }
-    
-    .dpad-btn:active {
-      transform: scale(0.95);
-    }
-    
-    .dpad-up { top: 8px; left: 50%; transform: translateX(-50%); }
-    .dpad-down { bottom: 8px; left: 50%; transform: translateX(-50%); }
-    .dpad-left { left: 8px; top: 50%; transform: translateY(-50%); }
-    .dpad-right { right: 8px; top: 50%; transform: translateY(-50%); }
-    
-    .dpad-up:hover { transform: translateX(-50%) scale(1.05); }
-    .dpad-down:hover { transform: translateX(-50%) scale(1.05); }
-    .dpad-left:hover { transform: translateY(-50%) scale(1.05); }
-    .dpad-right:hover { transform: translateY(-50%) scale(1.05); }
-    
-    .dpad-up:active { transform: translateX(-50%) scale(0.95); }
-    .dpad-down:active { transform: translateX(-50%) scale(0.95); }
-    .dpad-left:active { transform: translateY(-50%) scale(0.95); }
-    .dpad-right:active { transform: translateY(-50%) scale(0.95); }
-
-    .hint {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      text-align: center;
-      margin-top: 0.5rem;
-    }
-    
-    .hint strong {
-      color: var(--accent);
-      font-weight: 600;
-    }
-
-    /* Toast */
-    .toast {
-      position: fixed;
-      bottom: 2rem;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--bg-light);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 1rem 1.5rem;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-      display: none;
-      align-items: center;
-      gap: 0.75rem;
-      z-index: 1000;
-      backdrop-filter: blur(10px);
-    }
-
-    /* Flash animation */
-    .flash {
-      animation: pulse 0.8s ease;
-    }
-    
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-      100% { box-shadow: 0 0 0 20px rgba(16, 185, 129, 0); }
-    }
-
-    /* Mobile Responsive */
-    @media (max-width: 1024px) {
-      .layout {
-        grid-template-columns: 1fr;
-        height: auto;
-        gap: 1rem;
-      }
-      
-      .screen {
-        order: 1;
-        aspect-ratio: 16/9;
-        max-height: 60vh;
-      }
-      
-      .right {
-        order: 2;
-      }
-      
-      .left {
-        order: 3;
-        flex-direction: row;
-        overflow-x: auto;
-        padding: 1rem;
-      }
-      
-      .left .panel-header {
-        display: none;
-      }
-      
-      .left .info {
-        min-width: 140px;
-        flex-shrink: 0;
-      }
-      
-      .quick-actions {
-        grid-template-columns: repeat(3, 1fr);
-      }
-      
-      .icon-btn {
-        width: 56px;
-        height: 56px;
-        font-size: 1.5rem;
-      }
-      
-      .joystick-wrap {
-        width: 200px;
-        height: 200px;
-      }
-      
-      .dpad-btn {
-        width: 56px;
-        height: 56px;
-      }
-    }
-
-  /* User chip (header right) */
-  .user-chip {
-    display: flex;
-    align-items: center;
-    gap: .6rem;
-    background: var(--bg-light);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: .35rem .5rem .35rem .35rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,.06);
-  }
-
-  .user-avatar {
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    display: grid; place-items: center;
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
-    color: #fff; font-weight: 700; font-size: .9rem;
-  }
-
-  .user-name {
-    font-weight: 600; color: var(--text-primary); font-size: .9rem;
-  }
-
-  .logout-form { margin: 0; }
-  .logout-btn {
-    border: 1px solid var(--border);
-    background: var(--surface);
-    font-size: .8rem; padding: .25rem .55rem;
-    border-radius: 8px; cursor: pointer; color: var(--text-secondary);
-    transition: background .15s, transform .1s;
-  }
-  .logout-btn:hover { background: var(--surface-light); }
-  .logout-btn:active { transform: translateY(1px); }
+    /* --- Permissions UI (admin) --- */
+    .user-pill{display:inline-flex;align-items:center;gap:.5rem;padding:.2rem .55rem;border:1px solid var(--border);border-radius:999px;background:var(--surface)}
+    .lock-btn{border:none;background:transparent;cursor:pointer;font-size:1rem;line-height:1}
+    .lock-btn[disabled]{opacity:.5;cursor:not-allowed}
+    .lock-on{color:var(--danger)} .lock-off{color:var(--success)}
+    .controls-disabled .icon-btn,
+    .controls-disabled .dpad-btn{opacity:.45;cursor:not-allowed}
   </style>
-  <script>
-    window.IS_ADMIN = {{ 'true' if is_admin else 'false' }};
-  </script>
-
+  <script>window.IS_ADMIN = {{ 'true' if is_admin else 'false' }};</script>
 </head>
 <body>
   <div class="header">
     <div class="header-left">
-      <div class="logo">
-        <div class="logo-icon">🚗</div>
-        <h1>Drive Simulator Pro</h1>
-      </div>
+      <div class="logo"><div class="logo-icon">🚗</div><h1>Drive Simulator Pro</h1></div>
     </div>
-    <div style="display:flex; align-items:center; gap:1rem;">
+    <div style="display:flex;align-items:center;gap:1rem;">
       <nav class="nav-tabs">
         <a class="nav-tab active" href="/">Simulateur</a>
         <a class="nav-tab" href="/chatbot">Chatbot</a>
       </nav>
-
-      <!-- Chip utilisateur -->
       <div class="user-chip" title="Utilisateur connecté">
         <span class="user-avatar">{{ (user or '?')[:1]|upper }}</span>
         <span class="user-name">{{ user or 'Invité' }}</span>
         {% if is_admin %}
-        <span class="user-badge" style="margin-left:.25rem; font-size:.75rem; color:#fff; background:linear-gradient(135deg,#f43f5e,#ec4899); padding:.15rem .45rem; border-radius:999px; font-weight:700;">
-          ADMIN
-        </span>
+        <span class="user-badge" style="margin-left:.25rem;font-size:.75rem;color:#fff;background:linear-gradient(135deg,#f43f5e,#ec4899);padding:.15rem .45rem;border-radius:999px;font-weight:700;">ADMIN</span>
         {% endif %}
-        <form class="logout-form" method="post" action="/logout">
-          <button class="logout-btn" type="submit">Déconnexion</button>
-        </form>
+        <form class="logout-form" method="post" action="/logout"><button class="logout-btn" type="submit">Déconnexion</button></form>
       </div>
     </div>
-
   </div>
 
-  <main class="layout">
-    <!-- Left Panel -->
+  <main class="layout" id="layoutRoot">
     <aside class="panel left">
-      <div class="panel-header">
-        📊 Informations
-      </div>
-      <section class="info">
-        <div class="label">Vitesse Limite</div>
-        <div class="value" id="speed-limit">—</div>
-      </section>
-      <section class="info">
-        <div class="label">État du moteur</div>
-        <div class="value" id="engine-status">🟢 Arrêté</div>
-      </section>
-      <section class="info">
-        <div class="label">Dernière commande</div>
-        <div class="value" id="last-command">Aucune</div>
-      </section>
-      <section class="info" aria-live="polite" aria-atomic="true">
-        <div class="label">Description image</div>
-        <div class="value" id="img-desc">—</div>
-      </section>
+      <div class="panel-header">📊 Informations</div>
+      <section class="info"><div class="label">Vitesse Limite</div><div class="value" id="speed-limit">—</div></section>
+      <section class="info"><div class="label">État du moteur</div><div class="value" id="engine-status">🟢 Arrêté</div></section>
+      <section class="info"><div class="label">Dernière commande</div><div class="value" id="last-command">Aucune</div></section>
+      <section class="info" aria-live="polite" aria-atomic="true"><div class="label">Description image</div><div class="value" id="img-desc">—</div></section>
+
       {% if is_admin %}
       <section class="info" id="admin-users">
         <div class="label">Utilisateurs connectés (autres)</div>
         <div class="value">
-          <ul id="online-users" style="list-style:none; padding-left:0; margin:0; display:flex; flex-wrap:wrap; gap:.5rem;">
+          <ul id="online-users" style="list-style:none;padding-left:0;margin:0;display:flex;flex-wrap:wrap;gap:.5rem;">
             <li style="color:var(--text-muted);">—</li>
           </ul>
         </div>
@@ -602,33 +144,17 @@
       {% endif %}
     </aside>
 
-    <!-- Center Screen -->
     <section class="panel screen" id="screen">
       <img src="/video_feed" alt="Flux vidéo" />
-      <div class="screen-badge">
-        Mode détection: <strong>manuel</strong>
-      </div>
+      <div class="screen-badge">Mode détection: <strong>manuel</strong></div>
     </section>
 
-    <!-- Right Panel -->
-    <aside class="panel right">
-      <div class="panel-header">
-        🎮 Commandes
-      </div>
-
+    <aside class="panel right" id="controlsPanel">
+      <div class="panel-header">🎮 Commandes</div>
       <div class="quick-actions" aria-label="Actions rapides">
-        <div class="quick">
-          <button class="icon-btn" title="Klaxonner" aria-label="Klaxonner" onclick="sendAction('klaxonne')">🔊</button>
-          <small>Klaxonner</small>
-        </div>
-        <div class="quick">
-          <button class="icon-btn secondary" title="Clignoter" aria-label="Clignoter" onclick="sendAction('clignotte')">🚨</button>
-          <small>Clignoter</small>
-        </div>
-        <div class="quick">
-          <button class="icon-btn tertiary" id="btn-capture" title="Prendre photo panneau" aria-label="Prendre photo panneau" onclick="captureSpeedSign()">📸</button>
-          <small>Photo panneau</small>
-        </div>
+        <div class="quick"><button class="icon-btn" id="btn-klax" title="Klaxonner" aria-label="Klaxonner" onclick="sendAction('klaxonne')">🔊</button><small>Klaxonner</small></div>
+        <div class="quick"><button class="icon-btn secondary" id="btn-clig" title="Clignoter" aria-label="Clignoter" onclick="sendAction('clignotte')">🚨</button><small>Clignoter</small></div>
+        <div class="quick"><button class="icon-btn tertiary" id="btn-capture" title="Prendre photo panneau" aria-label="Prendre photo panneau" onclick="captureSpeedSign()">📸</button><small>Photo panneau</small></div>
       </div>
 
       <div class="controller-section">
@@ -648,6 +174,7 @@
           <button class="dpad-btn dpad-down" id="btn-down" title="Reculer" aria-label="Reculer">⬇️</button>
         </div>
       </div>
+      <p class="hint" id="permHint" style="display:none;">🔒 Contrôles désactivés par l’administrateur.</p>
       <p class="hint">Astuce : touche <strong>C</strong> = Photo panneau.</p>
     </aside>
   </main>
@@ -655,212 +182,155 @@
   <div class="toast" id="toast">✅ <span id="toast-text"></span></div>
 
   <script>
-    // --- State --------------------------------------------------------------
-    const lastCmdKey = 'simu:last-command';
-    let currentController = 'vehicle'; // 'vehicle' | 'camera'
+    const lastCmdKey='simu:last-command'; let currentController='vehicle';
 
     function setLastCommand(cmd){
-      const map = {
-        'avance': 'Avancer', 'recule': 'Reculer', 'tourne_a_gauche': 'Tourner à gauche', 'tourne_a_droite': 'Tourner à droite',
-        'klaxonne': 'Klaxonner', 'clignotte': 'Clignoter', 'vitesse': 'Évaluer Vitesse', 'performance': 'Évaluer Performance', 'capture': 'Capture panneau',
-        'cam_up':'Caméra ↑', 'cam_down':'Caméra ↓', 'cam_left':'Caméra ←', 'cam_right':'Caméra →'
-      };
-      const label = map[cmd] || cmd;
-      document.getElementById('last-command').textContent = label;
-      try { localStorage.setItem(lastCmdKey, label); } catch(_){ }
+      const map={'avance':'Avancer','recule':'Reculer','tourne_a_gauche':'Tourner à gauche','tourne_a_droite':'Tourner à droite','klaxonne':'Klaxonner','clignotte':'Clignoter','vitesse':'Évaluer Vitesse','performance':'Évaluer Performance','capture':'Capture panneau','cam_up':'Caméra ↑','cam_down':'Caméra ↓','cam_left':'Caméra ←','cam_right':'Caméra →'};
+      const label=map[cmd]||cmd; document.getElementById('last-command').textContent=label;
+      try{localStorage.setItem(lastCmdKey,label);}catch(_){}
       showToast(`Dernière commande : ${label}`);
     }
+    function showToast(text,ok=true){const t=document.getElementById('toast'), tt=document.getElementById('toast-text'); tt.textContent=text; t.style.display='flex'; t.style.border=`1px solid ${ok?'rgba(16,185,129,.35)':'rgba(239,68,68,.35)'}`; clearTimeout(window.__toastTimer); window.__toastTimer=setTimeout(()=>{t.style.display='none';},1800);}
 
-    function showToast(text, ok=true){
-      const toast = document.getElementById('toast');
-      const tt = document.getElementById('toast-text');
-      tt.textContent = text;
-      toast.style.display = 'flex';
-      toast.style.border = `1px solid ${ok ? 'rgba(16,185,129,.35)' : 'rgba(239,68,68,.35)'}`;
-      clearTimeout(window.__toastTimer);
-      window.__toastTimer = setTimeout(()=>{ toast.style.display='none'; }, 1800);
-    }
+    (function(){try{const saved=localStorage.getItem(lastCmdKey); if(saved){document.getElementById('last-command').textContent=saved;}}catch(_){}})();
 
-    (function(){
-      try { const saved = localStorage.getItem(lastCmdKey); if(saved){ document.getElementById('last-command').textContent = saved; } } catch(_){ }
-    })();
-
-    // --- Backend interaction ----------------------------------------------
     function sendAction(action){
-      fetch('/simulate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) })
-      .then(r => r.json())
-      .then(data => { flashOverlay(action); setLastCommand(data.action || action); })
-      .catch(err => { console.error('Erreur:', err); flashOverlay('Erreur'); });
+      if(!window.__controlsAllowed){return;}
+      fetch('/simulate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})})
+      .then(r=>r.json()).then(d=>{flashOverlay(action); setLastCommand(d.action||action);})
+      .catch(err=>{console.error('Erreur:',err); flashOverlay('Erreur');});
     }
-
     function flashOverlay(action){
-      const messages = {
-        'avance': 'Avance…', 'recule': 'Recule…', 'tourne_a_gauche': 'Gauche…', 'tourne_a_droite': 'Droite…',
-        'klaxonne': 'BEEP! Klaxon', 'clignotte': 'Clignotants', 'capture': 'Capture…',
-        'cam_up':'Caméra ↑', 'cam_down':'Caméra ↓', 'cam_left':'Caméra ←', 'cam_right':'Caméra →',
-        'Erreur':'Erreur'
-      };
-      const scr = document.getElementById('screen');
-      const tag = document.createElement('div');
-      tag.style.position = 'absolute'; tag.style.inset = '0'; tag.style.display = 'grid'; tag.style.placeItems = 'center'; tag.style.pointerEvents = 'none'; tag.style.borderRadius = '16px'; tag.style.backdropFilter = 'blur(2px)'; tag.style.background = 'rgba(0,0,0,.18)'; tag.style.color = '#fff'; tag.style.fontSize = '1.4rem';
-      tag.textContent = messages[action] || action;
-      scr.appendChild(tag);
-      setTimeout(()=>{ tag.remove(); }, 500);
+      const messages={'avance':'Avance…','recule':'Recule…','tourne_a_gauche':'Gauche…','tourne_a_droite':'Droite…','klaxonne':'BEEP! Klaxon','clignotte':'Clignotants','capture':'Capture…','cam_up':'Caméra ↑','cam_down':'Caméra ↓','cam_left':'Caméra ←','cam_right':'Caméra →','Erreur':'Erreur'};
+      const scr=document.getElementById('screen'); const tag=document.createElement('div');
+      tag.style.cssText='position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;border-radius:16px;backdrop-filter:blur(2px);background:rgba(0,0,0,.18);color:#fff;font-size:1.4rem';
+      tag.textContent=messages[action]||action; scr.appendChild(tag); setTimeout(()=>tag.remove(),500);
     }
 
-    // --- Controller switch -------------------------------------------------
     function setController(type){
-      currentController = (type === 'camera') ? 'camera' : 'vehicle';
-      const switchEl = document.getElementById('controllerSwitch');
-      switchEl.classList.toggle('camera', currentController === 'camera');
+      currentController=(type==='camera')?'camera':'vehicle';
+      const sw=document.getElementById('controllerSwitch');
+      sw.classList.toggle('camera', currentController==='camera');
       document.getElementById('pillVehicle').setAttribute('aria-pressed', currentController==='vehicle');
       document.getElementById('pillCamera').setAttribute('aria-pressed', currentController==='camera');
       document.getElementById('pillVehicle').setAttribute('aria-selected', currentController==='vehicle');
       document.getElementById('pillCamera').setAttribute('aria-selected', currentController==='camera');
       updateDpadTitles();
-      const hint = (currentController==='vehicle')?
-        'Flèches clavier = Véhicule · ZQSD = Caméra · 1/2 pour switcher':
-        'ZQSD = Caméra · Flèches = Véhicule · 1/2 pour switcher';
-      document.getElementById('controllerHint').textContent = hint;
+      document.getElementById('controllerHint').textContent=(currentController==='vehicle')?'Flèches clavier = Véhicule · ZQSD = Caméra · 1/2 pour switcher':'ZQSD = Caméra · Flèches = Véhicule · 1/2 pour switcher';
     }
-
     function updateDpadTitles(){
       if(currentController==='vehicle'){
-        document.getElementById('btn-up').title = 'Avancer';
-        document.getElementById('btn-down').title = 'Reculer';
-        document.getElementById('btn-left').title = 'Tourner à gauche';
-        document.getElementById('btn-right').title = 'Tourner à droite';
+        document.getElementById('btn-up').title='Avancer'; document.getElementById('btn-down').title='Reculer';
+        document.getElementById('btn-left').title='Tourner à gauche'; document.getElementById('btn-right').title='Tourner à droite';
       }else{
-        document.getElementById('btn-up').title = 'Caméra haut';
-        document.getElementById('btn-down').title = 'Caméra bas';
-        document.getElementById('btn-left').title = 'Caméra gauche';
-        document.getElementById('btn-right').title = 'Caméra droite';
+        document.getElementById('btn-up').title='Caméra haut'; document.getElementById('btn-down').title='Caméra bas';
+        document.getElementById('btn-left').title='Caméra gauche'; document.getElementById('btn-right').title='Caméra droite';
       }
     }
-
-    // Attach click handlers for D-pad once
-    ['up','down','left','right'].forEach(dir => {
-      document.getElementById(`btn-${dir}`).addEventListener('click', () => {
-        if(currentController==='vehicle'){
-          const map = { up:'avance', down:'recule', left:'tourne_a_gauche', right:'tourne_a_droite' };
-          sendAction(map[dir]);
-        } else {
-          const map = { up:'cam_up', down:'cam_down', left:'cam_left', right:'cam_right' };
-          sendAction(map[dir]);
-        }
+    ['up','down','left','right'].forEach(dir=>{
+      document.getElementById(`btn-${dir}`).addEventListener('click',()=>{ if(!window.__controlsAllowed) return;
+        if(currentController==='vehicle'){const map={up:'avance',down:'recule',left:'tourne_a_gauche',right:'tourne_a_droite'}; sendAction(map[dir]);}
+        else{const map={up:'cam_up',down:'cam_down',left:'cam_left',right:'cam_right'}; sendAction(map[dir]);}
       });
     });
-
-    // Keyboard support
-    window.addEventListener('keydown', (e)=>{
-      // quick switch
-      if(e.key==='1'){ setController('vehicle'); }
-      if(e.key==='2'){ setController('camera'); }
-
-      // capture
-      if(e.key==='c' || e.key==='C'){ captureSpeedSign(); }
-
-      // arrows always control VEHICLE
-      if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
-        e.preventDefault();
-        const map = { ArrowUp:'avance', ArrowDown:'recule', ArrowLeft:'tourne_a_gauche', ArrowRight:'tourne_a_droite' };
-        sendAction(map[e.key]);
-      }
-
-      // ZQSD (AZERTY) always control CAMERA
-      const k = e.key.toLowerCase();
-      if(['z','q','s','d'].includes(k)){
-        e.preventDefault();
-        const map = { z:'cam_up', s:'cam_down', q:'cam_left', d:'cam_right' };
-        sendAction(map[k]);
-      }
+    window.addEventListener('keydown',(e)=>{
+      if(!window.__controlsAllowed){return;}
+      if(e.key==='1'){setController('vehicle');}
+      if(e.key==='2'){setController('camera');}
+      if(e.key==='c'||e.key==='C'){captureSpeedSign();}
+      if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault(); const map={ArrowUp:'avance',ArrowDown:'recule',ArrowLeft:'tourne_a_gauche',ArrowRight:'tourne_a_droite'}; sendAction(map[e.key]);}
+      const k=e.key.toLowerCase(); if(['z','q','s','d'].includes(k)){e.preventDefault(); const map={z:'cam_up',s:'cam_down',q:'cam_left',d:'cam_right'}; sendAction(map[k]);}
     });
 
-    // --- Speed limit polling ----------------------------------------------
     async function refreshSpeedLimit(){
-      try{
-        const r = await fetch('/speed_limit');
-        const j = await r.json();
-        const el = document.getElementById('speed-limit');
-        const v = j && j.speed_limit;
-        if(v === null || v === undefined){ el.textContent = '—'; }
-        else { el.textContent = (Number.isInteger(v) ? `${v} km/h` : `${(+v).toFixed(1)} km/h`); }
-      }catch(e){ /* silencieux */ }
+      try{const r=await fetch('/speed_limit'); const j=await r.json(); const el=document.getElementById('speed-limit'); const v=j&&j.speed_limit;
+        el.textContent=(v==null)?'—':(Number.isInteger(v)?`${v} km/h`:`${(+v).toFixed(1)} km/h`);
+      }catch(_){}
     }
-    refreshSpeedLimit();
-    setInterval(refreshSpeedLimit, 1000);
+    refreshSpeedLimit(); setInterval(refreshSpeedLimit,1000);
 
-    // --- Description IA helpers -------------------------------------------
-    function setImageDescription(text){ document.getElementById('img-desc').textContent = text || '—'; }
-    function limitToFiveWords(text){ if(!text) return '—'; return text.toString().trim().split(/\s+/).filter(Boolean).slice(0,5).join(' '); }
+    function setImageDescription(text){ document.getElementById('img-desc').textContent=text||'—'; }
+    function limitToFiveWords(t){ if(!t) return '—'; return t.toString().trim().split(/\s+/).filter(Boolean).slice(0,5).join(' '); }
     async function describeImage(savedPath){
       if(!savedPath){ setImageDescription('—'); return; }
       setImageDescription('Analyse en cours…');
-      try{
-        const r = await fetch('/describe_image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: savedPath }) });
-        const j = await r.json();
-        const raw = (j && (j.description || j.desc || j.text || '')).toString();
-        setImageDescription(limitToFiveWords(raw));
-      }catch(e){ console.error(e); setImageDescription('Erreur description'); }
+      try{const r=await fetch('/describe_image',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:savedPath})});
+        const j=await r.json(); const raw=(j&&(j.description||j.desc||j.text||'')).toString(); setImageDescription(limitToFiveWords(raw));
+      }catch(e){console.error(e); setImageDescription('Erreur description');}
     }
 
-    // --- Capture + OCR -----------------------------------------------------
     async function captureSpeedSign(){
-      const btn = document.getElementById('btn-capture');
-      if(btn.hasAttribute('disabled')) return;
-      setLastCommand('capture'); flashOverlay('capture');
-      const original = btn.textContent; btn.setAttribute('disabled',''); btn.textContent='⏳';
-      try {
-        const r = await fetch('/capture_speed_sign', { method:'POST' });
-        const j = await r.json();
-        if(!j.ok){ showToast(j.error ? `Erreur capture: ${j.error}` : 'Échec capture', false); setImageDescription('—'); return; }
+      if(!window.__controlsAllowed){return;}
+      const btn=document.getElementById('btn-capture'); if(btn.hasAttribute('disabled')) return;
+      setLastCommand('capture'); flashOverlay('capture'); const original=btn.textContent; btn.setAttribute('disabled',''); btn.textContent='⏳';
+      try{
+        const r=await fetch('/capture_speed_sign',{method:'POST'}); const j=await r.json();
+        if(!j.ok){ showToast(j.error?`Erreur capture: ${j.error}`:'Échec capture',false); setImageDescription('—'); return; }
         await refreshSpeedLimit();
-        if(j.detected != null){ const v = Number(j.detected); showToast(`Limite détectée: ${v} km/h`); highlightSpeedLimit(); }
+        if(j.detected!=null){ const v=Number(j.detected); showToast(`Limite détectée: ${v} km/h`); highlightSpeedLimit(); }
         else{ showToast('Aucun nombre détecté', false); }
         if(j.saved_path){ await describeImage(j.saved_path); }
-      }catch(e){ console.error(e); showToast('Erreur réseau', false); setImageDescription('Erreur description'); }
-      finally{ btn.removeAttribute('disabled'); btn.textContent = original; }
+      }catch(e){console.error(e); showToast('Erreur réseau',false); setImageDescription('Erreur description');}
+      finally{ btn.removeAttribute('disabled'); btn.textContent=original; }
     }
-
-    function highlightSpeedLimit(){ const el = document.getElementById('speed-limit'); el.classList.add('flash'); setTimeout(()=> el.classList.remove('flash'), 900); }
-
-    // init
+    function highlightSpeedLimit(){ const el=document.getElementById('speed-limit'); el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'),900); }
     setController('vehicle');
 
-      async function refreshOnlineUsers(){
-      if (!window.IS_ADMIN) return;
+    // ------- Permissions (front-only; endpoints à ajouter dans app.py) -------
+    window.__controlsAllowed = true;
+    function applyPermissionState(allowed){
+      window.__controlsAllowed = !!allowed;
+      const panel = document.getElementById('controlsPanel');
+      const hint  = document.getElementById('permHint');
+      ['btn-klax','btn-clig','btn-capture','btn-up','btn-down','btn-left','btn-right','pillVehicle','pillCamera'].forEach(id=>{
+        const el = document.getElementById(id); if(!el) return;
+        if(allowed){ el.removeAttribute('disabled'); } else { el.setAttribute('disabled',''); }
+      });
+      document.getElementById('layoutRoot').classList.toggle('controls-disabled', !allowed);
+      hint.style.display = allowed ? 'none' : 'block';
+    }
+    async function pollMyPermission(){
       try{
-        const r = await fetch('/users/online');
-        if(!r.ok) return;
-        const j = await r.json();
-        const ul = document.getElementById('online-users');
-        if (!ul) return;
+        const r = await fetch('/permissions/me'); if(!r.ok) throw 0;
+        const j = await r.json(); applyPermissionState(!!j.allowed);
+      }catch(_){ /* silencieux: on ne bloque pas si route non prête */ }
+    }
+    pollMyPermission(); setInterval(pollMyPermission, 3000);
+
+    // ------- Admin: liste + cadenas -----------------------------------------
+    async function refreshOnlineUsers(){
+      if(!window.IS_ADMIN) return;
+      try{
+        const r = await fetch('/users/online'); if(!r.ok) return;
+        const j = await r.json(); const ul = document.getElementById('online-users'); if(!ul) return;
         ul.innerHTML = '';
         const users = (j && Array.isArray(j.users)) ? j.users : [];
-        if (users.length === 0){
-          const li = document.createElement('li');
-          li.style.color = 'var(--text-muted)';
-          li.textContent = 'Personne d’autre en ligne';
-          ul.appendChild(li);
-        }else{
-          users.forEach(pseudo => {
-            const li = document.createElement('li');
-            li.textContent = pseudo;
-            li.style.padding = '.2rem .55rem';
-            li.style.border = '1px solid var(--border)';
-            li.style.borderRadius = '999px';
-            li.style.background = 'var(--surface)';
-            ul.appendChild(li);
+        if(users.length===0){
+          const li=document.createElement('li'); li.style.color='var(--text-muted)'; li.textContent='Personne d’autre en ligne'; ul.appendChild(li); return;
+        }
+        for(const pseudo of users){
+          const li = document.createElement('li'); li.className='user-pill';
+          const name = document.createElement('span'); name.textContent = pseudo;
+          const btn  = document.createElement('button'); btn.className='lock-btn'; btn.setAttribute('aria-label','Basculer droit');
+          btn.textContent = '🔓'; btn.classList.add('lock-off');
+          // Fetch état initial
+          try{
+            const s = await fetch('/permissions/me?user='+encodeURIComponent(pseudo)); // réutilise /permissions/me pour une personne (à implémenter)
+            if(s.ok){ const sj = await s.json(); const a = !!sj.allowed; btn.textContent = a?'🔓':'🔒'; btn.classList.toggle('lock-off', a); btn.classList.toggle('lock-on', !a); }
+          }catch(_){}
+          btn.addEventListener('click', async ()=>{
+            btn.disabled = true;
+            try{
+              const t = await fetch('/admin/permissions/toggle', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ user: pseudo }) });
+              const tj = await t.json(); const a = !!tj.allowed;
+              btn.textContent = a?'🔓':'🔒'; btn.classList.toggle('lock-off', a); btn.classList.toggle('lock-on', !a);
+            }catch(_){ /* noop */ } finally { btn.disabled = false; }
           });
+          li.appendChild(name); li.appendChild(btn); ul.appendChild(li);
         }
       }catch(_){}
     }
-
-    if (window.IS_ADMIN){
-      refreshOnlineUsers();
-      setInterval(refreshOnlineUsers, 3000);
-    }
-
+    if(window.IS_ADMIN){ refreshOnlineUsers(); setInterval(refreshOnlineUsers, 3000); }
   </script>
 </body>
 </html>

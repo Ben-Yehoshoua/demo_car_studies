@@ -5,641 +5,214 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Chatbot - Drive Simulator Pro</title>
   <style>
-    :root {
-      --bg-dark: #f8fafc;
-      --bg-light: #ffffff;
-      --surface: #f1f5f9;
-      --surface-light: #e2e8f0;
-      --primary: #3b82f6;
-      --primary-dark: #2563eb;
-      --secondary: #8b5cf6;
-      --accent: #06b6d4;
-      --success: #10b981;
-      --warning: #f59e0b;
-      --danger: #ef4444;
-      --text-primary: #0f172a;
-      --text-secondary: #475569;
-      --text-muted: #64748b;
-      --border: rgba(15, 23, 42, 0.1);
+    :root{
+      --bg-dark:#f8fafc; --bg-light:#fff; --surface:#f1f5f9; --surface-light:#e2e8f0;
+      --primary:#3b82f6; --primary-dark:#2563eb; --secondary:#8b5cf6; --accent:#06b6d4;
+      --success:#10b981; --warning:#f59e0b; --danger:#ef4444;
+      --text-primary:#0f172a; --text-secondary:#475569; --text-muted:#64748b; --border:rgba(15,23,42,.1)
     }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    
-    body {
-      font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      background: var(--bg-dark);
-      min-height: 100vh;
-      color: var(--text-primary);
-      line-height: 1.6;
-    }
-
-    /* Header */
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1rem 1.5rem;
-      background: var(--bg-light);
-      border-bottom: 1px solid var(--border);
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-    
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-    
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-    
-    .logo-icon {
-      width: 40px;
-      height: 40px;
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      border-radius: 10px;
-      display: grid;
-      place-items: center;
-      font-size: 1.5rem;
-    }
-    
-    .header h1 {
-      font-size: 1.25rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      letter-spacing: -0.025em;
-    }
-    
-    .nav-tabs {
-      display: flex;
-      gap: 0.5rem;
-    }
-    
-    .nav-tab {
-      text-decoration: none;
-      color: var(--text-secondary);
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
-      transition: all 0.2s;
-      font-weight: 500;
-      font-size: 0.875rem;
-    }
-    
-    .nav-tab:hover {
-      background: var(--surface);
-      color: var(--text-primary);
-    }
-    
-    .nav-tab.active {
-      background: var(--primary);
-      color: white;
-      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
-    }
-
-    /* Chat Container */
-    .chat-container {
-      max-width: 900px;
-      margin: 1.5rem auto;
-      height: calc(100vh - 120px);
-      display: flex;
-      flex-direction: column;
-      background: var(--bg-light);
-      border-radius: 16px;
-      border: 1px solid var(--border);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-      overflow: hidden;
-    }
-
-    /* Chat Header */
-    .chat-header {
-      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-      color: white;
-      padding: 1.5rem;
-      text-align: center;
-      position: relative;
-      border-bottom: 1px solid var(--border);
-    }
-    
-    .chat-header h2 {
-      font-weight: 600;
-      font-size: 1.25rem;
-      z-index: 1;
-      position: relative;
-      letter-spacing: -0.025em;
-    }
-
-    /* Chatbox */
-    .chatbox {
-      flex: 1;
-      padding: 1.5rem;
-      overflow-y: auto;
-      background: var(--surface);
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-    
-    .chatbox::-webkit-scrollbar {
-      width: 8px;
-    }
-    
-    .chatbox::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    
-    .chatbox::-webkit-scrollbar-thumb {
-      background: var(--surface-light);
-      border-radius: 10px;
-    }
-    
-    .chatbox::-webkit-scrollbar-thumb:hover {
-      background: var(--text-muted);
-    }
-
-    /* Messages */
-    .message {
-      max-width: 75%;
-      padding: 1rem 1.25rem;
-      border-radius: 16px;
-      font-size: 0.95rem;
-      line-height: 1.5;
-      animation: fadeInUp 0.3s ease;
-      word-wrap: break-word;
-    }
-    
-    .message.user {
-      align-self: flex-end;
-      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-      color: white;
-      border-bottom-right-radius: 6px;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
-    }
-    
-    .message.bot {
-      align-self: flex-start;
-      background: var(--bg-light);
-      color: var(--text-primary);
-      border: 1px solid var(--border);
-      border-bottom-left-radius: 6px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    }
-    
-    .message .meta {
-      font-size: 0.75rem;
-      opacity: 0.7;
-      margin-top: 0.5rem;
-      font-style: italic;
-    }
-
-    /* Image Card */
-    .image-card {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-    
-    .image-card img {
-      width: 100%;
-      max-width: 450px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-      transition: transform 0.2s;
-    }
-    
-    .image-card img:hover {
-      transform: scale(1.02);
-    }
-
-    /* Animations */
-    @keyframes fadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-    
-    @keyframes typing {
-      0%, 80%, 100% {
-        transform: scale(0.8);
-        opacity: 0.5;
-      }
-      40% {
-        transform: scale(1);
-        opacity: 1;
-      }
-    }
-
-    /* Typing Indicator */
-    .typing-indicator {
-      display: none;
-      align-self: flex-start;
-      padding: 1rem 1.25rem;
-      background: var(--bg-light);
-      border-radius: 16px;
-      border-bottom-left-radius: 6px;
-      border: 1px solid var(--border);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-      animation: fadeInUp 0.3s ease;
-    }
-    
-    .typing-dots {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-    }
-    
-    .typing-dots span {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--primary);
-      animation: typing 1.4s infinite ease-in-out;
-    }
-    
-    .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
-    .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
-
-    /* Empty State */
-    .empty-state {
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 0.95rem;
-      margin-top: 2rem;
-      padding: 2rem;
-      background: var(--bg-light);
-      border-radius: 12px;
-      border: 1px dashed var(--border);
-    }
-
-    /* Input Container */
-    .input-container {
-      padding: 1rem 1.25rem;
-      background: var(--bg-light);
-      border-top: 1px solid var(--border);
-      display: flex;
-      gap: 0.75rem;
-      align-items: center;
-    }
-    
-    .input-message {
-      flex: 1;
-      padding: 1rem 1.25rem;
-      border: 2px solid var(--border);
-      border-radius: 12px;
-      font-size: 1rem;
-      outline: none;
-      transition: all 0.2s ease;
-      background: var(--surface);
-      color: var(--text-primary);
-      font-family: inherit;
-    }
-    
-    .input-message::placeholder {
-      color: var(--text-muted);
-    }
-    
-    .input-message:focus {
-      border-color: var(--primary);
-      background: var(--bg-light);
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-      transform: scale(1.01);
-    }
-    
-    .send-btn {
-      padding: 1rem 1.5rem;
-      background: linear-gradient(135deg, var(--success), #059669);
-      color: white;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.95rem;
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-    }
-    
-    .send-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
-    }
-    
-    .send-btn:active {
-      transform: translateY(0);
-    }
-
-    /* Mobile Responsive */
-    @media (max-width: 768px) {
-      .chat-container {
-        margin: 1rem;
-        height: calc(100vh - 100px);
-        border-radius: 12px;
-      }
-      
-      .message {
-        max-width: 85%;
-      }
-      
-      .image-card img {
-        max-width: 100%;
-      }
-      
-      .input-container {
-        padding: 0.75rem 1rem;
-      }
-      
-      .send-btn {
-        padding: 0.875rem 1.25rem;
-      }
-      
-      .header h1 {
-        font-size: 1.1rem;
-      }
-    }
-
-    /* User chip (header right) */
-    .user-chip {
-      display: flex; align-items: center; gap: .6rem;
-      background: var(--bg-light);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: .35rem .5rem .35rem .35rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,.06);
-    }
-    .user-avatar {
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      display: grid; place-items: center;
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      color: #fff; font-weight: 700; font-size: .9rem;
-    }
-    .user-name { font-weight: 600; color: var(--text-primary); font-size: .9rem; }
-    .logout-form { margin: 0; }
-    .logout-btn {
-      border: 1px solid var(--border);
-      background: var(--surface);
-      font-size: .8rem; padding: .25rem .55rem;
-      border-radius: 8px; cursor: pointer; color: var(--text-secondary);
-      transition: background .15s, transform .1s;
-    }
-    .logout-btn:hover { background: var(--surface-light); }
-    .logout-btn:active { transform: translateY(1px); }
-
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg-dark);min-height:100vh;color:var(--text-primary);line-height:1.6}
+    .header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;background:var(--bg-light);border-bottom:1px solid var(--border);box-shadow:0 4px 6px -1px rgba(0,0,0,.1)}
+    .header-left{display:flex;align-items:center;gap:1rem}
+    .logo{display:flex;align-items:center;gap:.75rem}
+    .logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--primary),var(--secondary));border-radius:10px;display:grid;place-items:center;font-size:1.5rem}
+    .header h1{font-size:1.25rem;font-weight:600;color:var(--text-primary);letter-spacing:-.025em}
+    .nav-tabs{display:flex;gap:.5rem}
+    .nav-tab{text-decoration:none;color:var(--text-secondary);padding:.5rem 1rem;border-radius:8px;transition:.2s;font-weight:500;font-size:.875rem}
+    .nav-tab:hover{background:var(--surface);color:var(--text-primary)}
+    .nav-tab.active{background:var(--primary);color:#fff;box-shadow:0 2px 8px rgba(59,130,246,.3)}
+    .chat-container{max-width:900px;margin:1.5rem auto;height:calc(100vh - 120px);display:flex;flex-direction:column;background:var(--bg-light);border-radius:16px;border:1px solid var(--border);box-shadow:0 10px 30px rgba(0,0,0,.08);overflow:hidden}
+    .chat-header{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:1.5rem;text-align:center;position:relative;border-bottom:1px solid var(--border)}
+    .chat-header h2{font-weight:600;font-size:1.25rem;position:relative;letter-spacing:-.025em}
+    .chatbox{flex:1;padding:1.5rem;overflow-y:auto;background:var(--surface);display:flex;flex-direction:column;gap:1rem}
+    .chatbox::-webkit-scrollbar{width:8px}.chatbox::-webkit-scrollbar-track{background:transparent}.chatbox::-webkit-scrollbar-thumb{background:var(--surface-light);border-radius:10px}.chatbox::-webkit-scrollbar-thumb:hover{background:var(--text-muted)}
+    .message{max-width:75%;padding:1rem 1.25rem;border-radius:16px;font-size:.95rem;line-height:1.5;animation:fadeInUp .3s ease;word-wrap:break-word}
+    .message.user{align-self:flex-end;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;border-bottom-right-radius:6px;box-shadow:0 4px 12px rgba(59,130,246,.25)}
+    .message.bot{align-self:flex-start;background:var(--bg-light);color:var(--text-primary);border:1px solid var(--border);border-bottom-left-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+    .message .meta{font-size:.75rem;opacity:.7;margin-top:.5rem;font-style:italic}
+    .image-card{display:flex;flex-direction:column;gap:.75rem}
+    .image-card img{width:100%;max-width:450px;border-radius:12px;border:1px solid var(--border);box-shadow:0 8px 20px rgba(0,0,0,.08);transition:transform .2s}
+    .image-card img:hover{transform:scale(1.02)}
+    @keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes typing{0%,80%,100%{transform:scale(.8);opacity:.5}40%{transform:scale(1);opacity:1}}
+    .typing-indicator{display:none;align-self:flex-start;padding:1rem 1.25rem;background:var(--bg-light);border-radius:16px;border-bottom-left-radius:6px;border:1px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,.05);animation:fadeInUp .3s ease}
+    .typing-dots{display:flex;gap:6px;align-items:center}
+    .typing-dots span{width:8px;height:8px;border-radius:50%;background:var(--primary);animation:typing 1.4s infinite ease-in-out}
+    .typing-dots span:nth-child(1){animation-delay:-.32s}.typing-dots span:nth-child(2){animation-delay:-.16s}
+    .empty-state{text-align:center;color:var(--text-muted);font-size:.95rem;margin-top:2rem;padding:2rem;background:var(--bg-light);border-radius:12px;border:1px dashed var(--border)}
+    .input-container{padding:1rem 1.25rem;background:var(--bg-light);border-top:1px solid var(--border);display:flex;gap:.75rem;align-items:center}
+    .input-message{flex:1;padding:1rem 1.25rem;border:2px solid var(--border);border-radius:12px;font-size:1rem;outline:none;transition:.2s;background:var(--surface);color:var(--text-primary);font-family:inherit}
+    .input-message::placeholder{color:var(--text-muted)}
+    .input-message:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(59,130,246,.1);transform:scale(1.01)}
+    .send-btn{padding:1rem 1.5rem;background:linear-gradient(135deg,var(--success),#059669);color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:600;transition:.2s;display:flex;align-items:center;gap:.5rem;font-size:.95rem;box-shadow:0 4px 12px rgba(16,185,129,.3)}
+    .send-btn:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(16,185,129,.4)}
+    .send-btn:active{transform:translateY(0)}
+    @media (max-width:768px){.chat-container{margin:1rem;height:calc(100vh - 100px);border-radius:12px}.message{max-width:85%}.image-card img{max-width:100%}.input-container{padding:.75rem 1rem}.send-btn{padding:.875rem 1.25rem}.header h1{font-size:1.1rem}}
+    .user-chip{display:flex;align-items:center;gap:.6rem;background:var(--bg-light);border:1px solid var(--border);border-radius:999px;padding:.35rem .5rem .35rem .35rem;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    .user-avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;font-weight:700;font-size:.9rem}
+    .user-name{font-weight:600;color:var(--text-primary);font-size:.9rem}
+    .logout-form{margin:0}
+    .logout-btn{border:1px solid var(--border);background:var(--surface);font-size:.8rem;padding:.25rem .55rem;border-radius:8px;cursor:pointer;color:var(--text-secondary);transition:background .15s,transform .1s}
+    .logout-btn:hover{background:var(--surface-light)} .logout-btn:active{transform:translateY(1px)}
+    /* Admin: liste + cadenas */
+    .admin-card{background:var(--bg-light);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:.75rem 1.25rem}
+    .user-pill{display:inline-flex;align-items:center;gap:.5rem;padding:.2rem .55rem;border:1px solid var(--border);border-radius:999px;background:var(--surface)}
+    .lock-btn{border:none;background:transparent;cursor:pointer;font-size:1rem;line-height:1}
+    .lock-on{color:var(--danger)} .lock-off{color:var(--success)}
+    .perm-hint{font-size:.8rem;color:var(--text-muted);margin-left:.5rem;display:none}
   </style>
-
-  <script>
-    window.IS_ADMIN = {{ 'true' if is_admin else 'false' }};
-  </script>
+  <script>window.IS_ADMIN = {{ 'true' if is_admin else 'false' }};</script>
 </head>
 <body>
   <div class="header">
     <div class="header-left">
-      <div class="logo">
-        <div class="logo-icon">🚗</div>
-        <h1>Drive Simulator Pro</h1>
-      </div>
+      <div class="logo"><div class="logo-icon">🚗</div><h1>Drive Simulator Pro</h1></div>
     </div>
     <div class="nav-tabs">
       <a href="/" class="nav-tab">Simulateur</a>
       <a href="/chatbot" class="nav-tab active">Chatbot</a>
     </div>
-
     <div class="user-chip" title="Utilisateur connecté">
       <span class="user-avatar">{{ (user or '?')[:1]|upper }}</span>
       <span class="user-name">{{ user or 'Invité' }}</span>
       {% if is_admin %}
-      <span class="user-badge" style="margin-left:.25rem; font-size:.75rem; color:#fff; background:linear-gradient(135deg,#f43f5e,#ec4899); padding:.15rem .45rem; border-radius:999px; font-weight:700;">
-        ADMIN
-      </span>
+      <span class="user-badge" style="margin-left:.25rem;font-size:.75rem;color:#fff;background:linear-gradient(135deg,#f43f5e,#ec4899);padding:.15rem .45rem;border-radius:999px;font-weight:700;">ADMIN</span>
       {% endif %}
-      <form class="logout-form" method="post" action="/logout">
-        <button class="logout-btn" type="submit">Déconnexion</button>
-      </form>
+      <form class="logout-form" method="post" action="/logout"><button class="logout-btn" type="submit">Déconnexion</button></form>
     </div>
   </div>
 
   <div class="chat-container">
-    <div class="chat-header">
-      <h2>💬 Assistant de Conduite IA</h2>
-    </div>
+    <div class="chat-header"><h2>💬 Assistant de Conduite IA</h2></div>
 
     {% if is_admin %}
-    <div class="admin-card" style="background:var(--bg-light); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding: .75rem 1.25rem;">
-      <div style="font-size:.8rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); letter-spacing:.05em; margin-bottom:.5rem;">
+    <div class="admin-card">
+      <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);letter-spacing:.05em;margin-bottom:.5rem;">
         Utilisateurs connectés (autres)
       </div>
-      <ul id="online-users" style="list-style:none; padding-left:0; margin:0; display:flex; flex-wrap:wrap; gap:.5rem;">
+      <ul id="online-users" style="list-style:none;padding-left:0;margin:0;display:flex;flex-wrap:wrap;gap:.5rem;">
         <li style="color:var(--text-muted);">—</li>
       </ul>
     </div>
     {% endif %}
 
     <div class="chatbox" id="chatbox">
-      <div class="empty-state">
-        👋 Bonjour ! Je suis votre assistant de conduite virtuel.<br/>
-        Dites par exemple : « Que vois-tu ? » pour capturer et décrire l'image. 🚗
-      </div>
+      <div class="empty-state">👋 Bonjour ! Je suis votre assistant de conduite virtuel.<br/>Dites par exemple : « Que vois-tu ? » pour capturer et décrire l'image. 🚗</div>
     </div>
 
-    <div class="typing-indicator" id="typingIndicator">
-      <div class="typing-dots"><span></span><span></span><span></span></div>
-    </div>
+    <div class="typing-indicator" id="typingIndicator"><div class="typing-dots"><span></span><span></span><span></span></div></div>
 
     <div class="input-container">
       <input id="inputMessage" class="input-message" placeholder="Tapez votre message ici..." maxlength="500"/>
       <button class="send-btn" id="sendBtn"><span>📨</span>Envoyer</button>
+      <span id="permHintChat" class="perm-hint">🔒 Envoi désactivé par l’admin</span>
     </div>
   </div>
 
   <script>
-    const chatbox = document.getElementById('chatbox');
-    const inputMessage = document.getElementById('inputMessage');
-    const typingIndicator = document.getElementById('typingIndicator');
-    const sendBtn = document.getElementById('sendBtn');
-    let isFirstMessage = true;
+    const chatbox=document.getElementById('chatbox');
+    const inputMessage=document.getElementById('inputMessage');
+    const typingIndicator=document.getElementById('typingIndicator');
+    const sendBtn=document.getElementById('sendBtn');
+    const permHintChat=document.getElementById('permHintChat');
+    let isFirstMessage=true;
 
-    // — UX: Enter pour envoyer
-    inputMessage.addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
-    sendBtn.addEventListener('click', sendMessage);
+    inputMessage.addEventListener('keypress',e=>{ if(e.key==='Enter') sendMessage(); });
+    sendBtn.addEventListener('click',sendMessage);
 
-    // — Décide si la requête est une intention de capture d'image
     function isImageCaptureIntent(text){
-      const t = (text || '').toLowerCase().normalize('NFKD');
-      const patterns = [
-        /que vois[-\s]*tu\s*\??$/,
-        /qu'?est-ce qui est (?:a|à) l'?image\s*\??/,
-        /qu'?y a[-\s]*t[-\s]*il (?:a|à) l'?image\s*\??/,
-        /prends?\s*(?:une\s*)?photo/,
-        /capture\s*(?:l|la|une)?\s*image/,
-        /qu'?est-ce que tu vois/i
-      ];
-      return patterns.some(rx => rx.test(t));
+      const t=(text||'').toLowerCase().normalize('NFKD');
+      const patterns=[/que vois[-\s]*tu\s*\??$/, /qu'?est-ce qui est (?:a|à) l'?image\s*\??/, /qu'?y a[-\s]*t[-\s]*il (?:a|à) l'?image\s*\??/, /prends?\s*(?:une\s*)?photo/, /capture\s*(?:l|la|une)?\s*image/, /qu'?est-ce que tu vois/i];
+      return patterns.some(rx=>rx.test(t));
     }
 
-    // — Helpers UI
-    function addMessage(text, sender='bot'){
-      if (isFirstMessage){ chatbox.innerHTML=''; isFirstMessage=false; }
-      const div = document.createElement('div');
-      div.className = `message ${sender}`;
-      div.textContent = text;
-      chatbox.appendChild(div);
-      chatbox.scrollTop = chatbox.scrollHeight;
-      return div;
-    }
-
-    function addImageCard({src, alt, caption}){
-      const wrap = document.createElement('div');
-      wrap.className = 'message bot';
-      const card = document.createElement('div');
-      card.className = 'image-card';
-
-      const img = document.createElement('img');
-      img.alt = alt || 'Image capturée';
-      if (src) img.src = src;
-
-      const meta = document.createElement('div');
-      meta.className = 'meta';
-      meta.textContent = caption || '';
-
-      card.appendChild(img);
-      card.appendChild(meta);
-      wrap.appendChild(card);
-      chatbox.appendChild(wrap);
-      chatbox.scrollTop = chatbox.scrollHeight;
-      return { wrap, img, meta };
-    }
-
-    function showTyping(){ typingIndicator.style.display='block'; chatbox.scrollTop = chatbox.scrollHeight; }
+    function addMessage(text,sender='bot'){ if(isFirstMessage){ chatbox.innerHTML=''; isFirstMessage=false; }
+      const div=document.createElement('div'); div.className=`message ${sender}`; div.textContent=text; chatbox.appendChild(div); chatbox.scrollTop=chatbox.scrollHeight; return div; }
+    function addImageCard({src,alt,caption}){ const wrap=document.createElement('div'); wrap.className='message bot';
+      const card=document.createElement('div'); card.className='image-card';
+      const img=document.createElement('img'); img.alt=alt||'Image capturée'; if(src) img.src=src;
+      const meta=document.createElement('div'); meta.className='meta'; meta.textContent=caption||'';
+      card.appendChild(img); card.appendChild(meta); wrap.appendChild(card); chatbox.appendChild(wrap); chatbox.scrollTop=chatbox.scrollHeight; return {wrap,img,meta}; }
+    function showTyping(){ typingIndicator.style.display='block'; chatbox.scrollTop=chatbox.scrollHeight; }
     function hideTyping(){ typingIndicator.style.display='none'; }
 
-    // — Flux principal d'envoi
     async function sendMessage(){
-      const msg = (inputMessage.value || '').trim();
-      if (!msg) return;
-
-      addMessage(msg, 'user');
-      inputMessage.value = '';
-
-      if (isImageCaptureIntent(msg)){
-        showTyping();
-        try{
-          await captureAndDescribe();
-        }catch(err){
-          addMessage("Désolé, la capture d'image a échoué.", 'bot');
-          console.error(err);
-        }finally{
-          hideTyping();
-        }
-        return; // ne pas appeler /chat dans ce cas
-      }
-
-      // Sinon : flux chat normal
+      const msg=(inputMessage.value||'').trim(); if(!msg) return;
+      if(!window.__chatAllowed){ return; } // bloqué par admin
+      addMessage(msg,'user'); inputMessage.value='';
+      if(isImageCaptureIntent(msg)){ showTyping(); try{ await captureAndDescribe(); }catch(err){ addMessage("Désolé, la capture d'image a échoué.",'bot'); console.error(err);} finally{ hideTyping(); } return; }
       showTyping();
       try{
-        const resp = await fetch('/chat', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ message: msg })
-        });
-        const data = await resp.json();
-        addMessage(data.reply || 'OK', 'bot');
-      }catch(err){
-        addMessage("Désolé, une erreur s'est produite.", 'bot');
-        console.error(err);
-      }finally{
-        hideTyping();
-      }
+        const resp=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})});
+        const data=await resp.json(); addMessage(data.reply||'OK','bot');
+      }catch(err){ addMessage("Désolé, une erreur s'est produite.",'bot'); console.error(err); }
+      finally{ hideTyping(); }
     }
 
-    // — Séquence: capture -> affichage image -> description complète
     async function captureAndDescribe(){
-      // 1) Capture
-      const capResp = await fetch('/capture_speed_sign', {
-        method:'POST',
-        headers:{'Content-Type': 'application/json'},
-        body: JSON.stringify({})
-      });
-
-      const cap = await capResp.json();
-      if (!capResp.ok || !cap.ok){
-        throw new Error(cap.error || 'Capture échouée');
-      }
-
-      // 2) Affiche l'image capturée
-      //    On utilise /snap?path=... (à implémenter côté Python pour servir le fichier).
-      const fullPath = cap.full_path || cap.saved_path;
-      const { img, meta } = addImageCard({
-        src: fullPath ? (`/snap?path=${encodeURIComponent(fullPath)}`) : '',
-        alt: 'Image capturée',
-        caption: 'Image capturée — analyse en cours…'
-      });
-
-      // 3) Demande la description COMPLÈTE au modèle (sans limitation côté Python)
-      const descResp = await fetch('/describe_image', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ path: fullPath || cap.saved_path })
-      });
-      const desc = await descResp.json();
-
-      if (!descResp.ok || !desc.ok){
-        meta.textContent = "Échec de la description de l'image.";
-      }else{
-        // Si un futur backend retourne aussi data_url, on met à jour l'aperçu.
-        if (desc.data_url && typeof desc.data_url === 'string'){
-          img.src = desc.data_url; // remplace par un data URL si fourni
-        }
-        meta.textContent = desc.description || 'Description indisponible.';
-      }
+      const capResp=await fetch('/capture_speed_sign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
+      const cap=await capResp.json(); if(!capResp.ok||!cap.ok){ throw new Error(cap.error||'Capture échouée'); }
+      const fullPath=cap.full_path||cap.saved_path;
+      const {img,meta}=addImageCard({src:fullPath?(`/snap?path=${encodeURIComponent(fullPath)}`):'',alt:'Image capturée',caption:'Image capturée — analyse en cours…'});
+      const descResp=await fetch('/describe_image',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:fullPath||cap.saved_path})});
+      const desc=await descResp.json();
+      if(!descResp.ok||!desc.ok){ meta.textContent="Échec de la description de l'image."; }
+      else{ if(desc.data_url&&typeof desc.data_url==='string'){ img.src=desc.data_url; } meta.textContent=desc.description||'Description indisponible.'; }
     }
 
-    // — Petites animations input
-    inputMessage.addEventListener('focus', function(){ this.style.transform='scale(1.01)'; });
-    inputMessage.addEventListener('blur', function(){ this.style.transform='scale(1)'; });
+    inputMessage.addEventListener('focus',function(){ this.style.transform='scale(1.01)'; });
+    inputMessage.addEventListener('blur',function(){ this.style.transform='scale(1)'; });
 
+    // ------- Permissions (front) -------------------------------------------
+    window.__chatAllowed = true;
+    function applyChatPermission(allowed){
+      window.__chatAllowed = !!allowed;
+      if(allowed){ sendBtn.removeAttribute('disabled'); inputMessage.removeAttribute('disabled'); permHintChat.style.display='none'; }
+      else{ sendBtn.setAttribute('disabled',''); inputMessage.setAttribute('disabled',''); permHintChat.style.display='inline-block'; }
+    }
+    async function pollMyPermission(){
+      try{
+        const r = await fetch('/permissions/me'); if(!r.ok) throw 0;
+        const j = await r.json(); applyChatPermission(!!j.allowed);
+      }catch(_){ /* silencieux */ }
+    }
+    pollMyPermission(); setInterval(pollMyPermission, 3000);
+
+    // ------- Admin: cadenas à côté de chaque pseudo -------------------------
     async function refreshOnlineUsers(){
-    if (!window.IS_ADMIN) return;
-    try{
-      const r = await fetch('/users/online');
-      if(!r.ok) return;
-      const j = await r.json();
-      const ul = document.getElementById('online-users');
-      if (!ul) return;
-      ul.innerHTML = '';
-      const users = (j && Array.isArray(j.users)) ? j.users : [];
-      if (users.length === 0){
-        const li = document.createElement('li');
-        li.style.color = 'var(--text-muted)';
-        li.textContent = 'Personne d’autre en ligne';
-        ul.appendChild(li);
-      }else{
-        users.forEach(pseudo => {
-          const li = document.createElement('li');
-          li.textContent = pseudo;
-          li.style.padding = '.2rem .55rem';
-          li.style.border = '1px solid var(--border)';
-          li.style.borderRadius = '999px';
-          li.style.background = 'var(--surface)';
-          ul.appendChild(li);
-        });
-      }
-    }catch(_){}
-  }
-
-  if (window.IS_ADMIN){
-    refreshOnlineUsers();
-    setInterval(refreshOnlineUsers, 3000);
-  }
+      if (!window.IS_ADMIN) return;
+      try{
+        const r = await fetch('/users/online'); if(!r.ok) return;
+        const j = await r.json(); const ul = document.getElementById('online-users'); if(!ul) return;
+        ul.innerHTML = '';
+        const users = (j && Array.isArray(j.users)) ? j.users : [];
+        if (users.length === 0){
+          const li=document.createElement('li'); li.style.color='var(--text-muted)'; li.textContent='Personne d’autre en ligne'; ul.appendChild(li);
+          return;
+        }
+        for(const pseudo of users){
+          const li=document.createElement('li'); li.className='user-pill';
+          const name=document.createElement('span'); name.textContent=pseudo;
+          const btn=document.createElement('button'); btn.className='lock-btn'; btn.setAttribute('aria-label','Basculer droit'); btn.textContent='🔓'; btn.classList.add('lock-off');
+          // État initial
+          try{
+            const s = await fetch('/permissions/me?user='+encodeURIComponent(pseudo));
+            if(s.ok){ const sj = await s.json(); const a = !!sj.allowed; btn.textContent = a?'🔓':'🔒'; btn.classList.toggle('lock-off', a); btn.classList.toggle('lock-on', !a); }
+          }catch(_){}
+          btn.addEventListener('click', async ()=>{
+            btn.disabled = true;
+            try{
+              const t = await fetch('/admin/permissions/toggle', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ user: pseudo }) });
+              const tj = await t.json(); const a = !!tj.allowed;
+              btn.textContent = a?'🔓':'🔒'; btn.classList.toggle('lock-off', a); btn.classList.toggle('lock-on', !a);
+            }catch(_){ } finally { btn.disabled = false; }
+          });
+          li.appendChild(name); li.appendChild(btn); ul.appendChild(li);
+        }
+      }catch(_){}
+    }
+    if (window.IS_ADMIN){ refreshOnlineUsers(); setInterval(refreshOnlineUsers, 3000); }
   </script>
 </body>
 </html>

@@ -1,5 +1,5 @@
-# app.py — version avec /snap et description SANS LIMITE
-from flask import Flask, render_template, request, jsonify, Response, send_file, session, flash, get_flashed_messages, redirect, url_for  # + session, redirect, url_for
+# app.py — backend avec gestion des permissions (admin cadenas) + enforcement
+from flask import Flask, render_template, request, jsonify, Response, send_file, session, flash, redirect, url_for
 import cv2
 import atexit
 import time
@@ -24,7 +24,7 @@ if DEBUG:
 else:
     import serial
     ser = serial.Serial(
-        port='/dev/serial0',   # /dev/ttyAMA0 ou /dev/ttyS0 selon modèle
+        port='/dev/serial0',
         baudrate=9600,
         timeout=1
     )
@@ -38,7 +38,6 @@ def envoyer_message(message: str):
         print(f"Envoyé à l'Arduino : {message}")
 
 # --- Détection panneau (seulement utilisée à la demande) ---------------------
-# Plages HSV « rouge » + heuristique « cœur blanc » (panneau vitesse)
 _LOWER_RED_1 = np.array([0,   40, 40], np.uint8)
 _UPPER_RED_1 = np.array([12, 255,255], np.uint8)
 _LOWER_RED_2 = np.array([168, 40, 40], np.uint8)
@@ -55,27 +54,20 @@ def _circularity(area: float, perim: float) -> float:
     return 4.0 * np.pi * (area / (perim * perim))
 
 def detect_speed_limit_candidates(frame_bgr: np.ndarray):
-    """
-    Détecte des candidats de panneaux de limitation de vitesse (anneau rouge + cœur blanc).
-    Retourne une liste de bounding boxes [(x, y, w, h), ...].
-    """
+    """Retourne des bounding boxes plausibles de panneaux vitesse."""
     try:
         img = cv2.bilateralFilter(frame_bgr, d=7, sigmaColor=60, sigmaSpace=60)
-        # Unsharp mask léger
         blur = cv2.GaussianBlur(img, (0, 0), 1.2)
         img = cv2.addWeighted(img, 1.6, blur, -0.6, 0)
-
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        # Masque rouge
         mask1 = cv2.inRange(hsv, _LOWER_RED_1, _UPPER_RED_1)
         mask2 = cv2.inRange(hsv, _LOWER_RED_2, _UPPER_RED_2)
         mask_red = cv2.bitwise_or(mask1, mask2)
-
         kernel = np.ones((7, 7), np.uint8)
         mask_red = cv2.morphologyEx(mask_red, cv2.MORPH_CLOSE, kernel, iterations=2)
         mask_red = cv2.morphologyEx(mask_red, cv2.MORPH_OPEN,  kernel, iterations=1)
-
         contours, _ = cv2.findContours(mask_red, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
         boxes = []
         for cnt in contours:
             area = cv2.contourArea(cnt)
@@ -86,14 +78,12 @@ def detect_speed_limit_candidates(frame_bgr: np.ndarray):
                 continue
             if _circularity(area, perim) < _MIN_CIRCULARITY:
                 continue
-
             (cx, cy), radius = cv2.minEnclosingCircle(cnt)
             if radius < 14:
                 continue
 
             x, y, w, h = cv2.boundingRect(cnt)
-
-            # Vérifie un « cœur blanc »
+            # Vérifie cœur blanc
             h_img, w_img = hsv.shape[:2]
             inner_radius = max(int(radius * 0.6), 8)
             x0 = max(int(cx - inner_radius), 0)
@@ -119,7 +109,7 @@ def detect_speed_limit_candidates(frame_bgr: np.ndarray):
 
             boxes.append((x, y, w, h))
 
-        # Fallback Hough si vide (utile en faible lumière)
+        # Fallback Hough si rien trouvé
         if not boxes:
             v = hsv[:, :, 2]
             v = cv2.GaussianBlur(v, (9,9), 2)
@@ -140,35 +130,45 @@ def detect_speed_limit_candidates(frame_bgr: np.ndarray):
         return []
 
 # ========= OCR & Vision ======================================================
-# Dossier snapshots
 SNAP_DIR = os.path.join(os.getcwd(), "snapshots_speed_sign")
 os.makedirs(SNAP_DIR, exist_ok=True)
-
-# Exécuteur OCR
 _OCR_EXEC = ThreadPoolExecutor(max_workers=1)
-
-# Charge variables d’environnement (.env)
 load_dotenv()
-
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-
 # --- Auth / rôles ------------------------------------------------------------
-SHARED_PASSWORD = os.getenv("APP_SHARED_PASSWORD", "change-me")  # << mot de passe commun défini par toi
-SECRET_KEY = os.getenv("APP_SECRET_KEY", "dev-key-change-me")    # << clé session
+SHARED_PASSWORD = os.getenv("APP_SHARED_PASSWORD", "change-me")
+SECRET_KEY     = os.getenv("APP_SECRET_KEY",  "dev-key-change-me")
 ADMIN_USERNAME = os.getenv("APP_ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("APP_ADMIN_PASSWORD", "changeme")
 
-# Suivi très simple (in-memory, process unique)
 _online_users = set()
 _online_lock = RLock()
 
 def is_admin() -> bool:
     return session.get("user") == ADMIN_USERNAME
 
+# -------- Permissions (in-memory) --------------------------------------------
+__perm_lock = RLock()
+__permissions: dict[str, bool] = {}  # pseudo -> allowed
 
+def get_allowed(pseudo: str) -> bool:
+    with __perm_lock:
+        return __permissions.get(pseudo, False)
+
+def set_allowed(pseudo: str, allowed: bool) -> bool:
+    with __perm_lock:
+        __permissions[pseudo] = bool(allowed)
+        return __permissions[pseudo]
+
+def toggle_allowed(pseudo: str) -> bool:
+    with __perm_lock:
+        cur = __permissions.get(pseudo, True)
+        __permissions[pseudo] = not cur
+        return __permissions[pseudo]
+
+# --- Utils image/ocr ---------------------------------------------------------
 def _quick_compress_to_b64_jpeg(img_bgr: np.ndarray, max_side: int = 320) -> Optional[str]:
-    """Convertit un BGR en JPEG base64 (data URL), en niveaux de gris et réduit."""
     try:
         gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
         h, w = gray.shape[:2]
@@ -188,13 +188,11 @@ def _quick_compress_to_b64_jpeg(img_bgr: np.ndarray, max_side: int = 320) -> Opt
         return None
 
 def _img_path_to_data_url(path: str, max_side: int = 512) -> Optional[str]:
-    """Lit une image disque et la compresse en data URL JPEG couleur."""
     try:
         img = cv2.imread(path, cv2.IMREAD_COLOR)
         if img is None:
             return None
         h, w = img.shape[:2]
-        scale = 1.0
         if max(h, w) > max_side:
             scale = max_side / float(max(h, w))
             img = cv2.resize(img, (int(w*scale), int(h*scale)), interpolation=cv2.INTER_AREA)
@@ -207,7 +205,6 @@ def _img_path_to_data_url(path: str, max_side: int = 512) -> Optional[str]:
         return None
 
 def _ocr_number_from_data_url(data_url: str) -> Optional[int]:
-    """Envoie l’image (data URL) au modèle vision et extrait un entier 1–3 chiffres."""
     try:
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -231,7 +228,6 @@ def _ocr_number_from_data_url(data_url: str) -> Optional[int]:
         return None
 
 def _limit_to_5_words(text: str) -> str:
-    """Coupe proprement à 5 mots maximum (espaces multiples tolérés)."""
     if not text:
         return "—"
     words = re.findall(r"\S+", text.strip())
@@ -242,13 +238,10 @@ CAM_INDEX_CANDIDATES = [0, 1]
 WIDTH, HEIGHT, FPS = 640, 480, 30
 cap = None
 cap_lock = Lock()
-
-# Dernier frame disponible pour capture manuelle
 _last_frame = None
 _last_frame_lock = Lock()
 
 def open_camera():
-    """Ouvre la caméra avec MJPG et applique WIDTH/HEIGHT/FPS."""
     for idx in CAM_INDEX_CANDIDATES:
         c = cv2.VideoCapture(idx)
         if not c.isOpened():
@@ -281,13 +274,7 @@ def release_camera():
 atexit.register(release_camera)
 
 def generate_frames():
-    """
-    Génère le flux JPEG multipart pour /video_feed.
-    AUCUNE détection/ocr ici → mode MANUEL.
-    Stocke simplement le dernier frame pour /capture_speed_sign.
-    """
     global _last_frame
-
     if ensure_camera() is None:
         blank = (np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8))
         ok, buffer = cv2.imencode('.jpg', blank)
@@ -306,7 +293,6 @@ def generate_frames():
                 break
             continue
 
-        # Mémorise ce frame pour la capture manuelle
         with _last_frame_lock:
             _last_frame = frame.copy()
 
@@ -321,7 +307,6 @@ _speed_limit_value: Optional[float] = None
 _speed_limit_lock = RLock()
 
 def set_speed_limit(value: Optional[Union[int, float]]):
-    """Met à jour la vitesse limite côté serveur (value=None pour effacer)."""
     global _speed_limit_value
     with _speed_limit_lock:
         if value is None:
@@ -342,38 +327,27 @@ app.secret_key = SECRET_KEY
 def is_logged_in() -> bool:
     return bool(session.get("user"))
 
-# chemins accessibles sans login
-_ANON_PATHS = {
-    "/login",
-    "/snap",           # on peut le passer derrière login si tu préfères
-}
+_ANON_PATHS = { "/login" }
 def _is_anon_allowed(path: str) -> bool:
     if path == "/":
         return False
-    if path.startswith("/static/"):
+    if path.startswith("/static/"):  # fichiers statiques
         return True
-    # autorise favicon
     if path in ("/favicon.ico",):
         return True
-    # GET /snap?path=... : à toi de décider. Ici: protégé, donc non.
     return path in _ANON_PATHS
 
 @app.before_request
 def require_auth():
-    # laisse passer les requêtes anonymes
     if _is_anon_allowed(request.path):
         return
-    # protégé par login
-    # si loggé, garde la trace
     if is_logged_in():
         with _online_lock:
             _online_users.add(session["user"])
-    if not is_logged_in():
-        # garde l’URL pour y revenir après
-        return redirect(url_for("login", next=request.path))
+        return
+    return redirect(url_for("login", next=request.path))
 
-# ----------- NOUVELLES ROUTES AUTH ------------------------------------------
-@app.route("/login", methods=["GET", "POST"])
+# ----------- Auth ------------------------------------------------------------
 @app.route("/login", methods=["GET", "POST"])
 def login():
     error = None
@@ -381,26 +355,29 @@ def login():
         username = (request.form.get("username") or "").strip()
         password = request.form.get("password") or ""
 
-        # --- ADMIN d'abord : et on RETURN si OK ---------------------------
+        # Admin
         if username == ADMIN_USERNAME:
             if password != ADMIN_PASSWORD:
                 flash("Identifiants incorrects.", "error")
                 return redirect(url_for('login'))
             session["user"] = username
-            with _online_lock:
-                _online_users.add(username)
+            with _online_lock: _online_users.add(username)
+            # L'admin est toujours allowed (même si non stocké)
+            set_allowed(username, True)
             nxt = request.args.get("next") or url_for("index")
-            return redirect(nxt)   # <<< IMPORTANT : ne pas tomber dans la suite
+            return redirect(nxt)
 
-        # --- Utilisateur standard ----------------------------------------
+        # Utilisateur standard
         if not username:
             error = "Merci de renseigner un pseudo."
         elif password != SHARED_PASSWORD:
             error = "Mot de passe incorrect."
         else:
             session["user"] = username
-            with _online_lock:
-                _online_users.add(username)
+            with _online_lock: _online_users.add(username)
+            # Par défaut, on autorise si inconnu
+            with __perm_lock:
+                __permissions.setdefault(username, False)
             nxt = request.args.get("next") or url_for("index")
             return redirect(nxt)
 
@@ -424,11 +401,43 @@ def users_online():
         others = sorted(u for u in _online_users if u != me)
     return jsonify({"users": others})
 
+# --------- Permissions API ---------------------------------------------------
+@app.route("/permissions/me", methods=["GET"])
+def permissions_me():
+    """
+    Utilisateur: renvoie son propre état {allowed: bool}
+    Admin: peut fournir ?user=<pseudo> pour lire l'état d'un autre utilisateur.
+    """
+    if not is_logged_in():
+        return jsonify({"error": "unauthorized"}), 401
+
+    target = request.args.get("user")
+    if target:
+        if not is_admin():
+            return jsonify({"error": "forbidden"}), 403
+        return jsonify({"allowed": get_allowed(target)})
+
+    return jsonify({"allowed": get_allowed(session["user"])})
+
+@app.route("/admin/permissions/toggle", methods=["POST"])
+def admin_permissions_toggle():
+    if not is_logged_in() or not is_admin():
+        return jsonify({"error": "forbidden"}), 403
+    data = request.get_json(silent=True) or {}
+    user = (data.get("user") or "").strip()
+    if not user:
+        return jsonify({"error": "user manquant"}), 400
+    if user == ADMIN_USERNAME:
+        return jsonify({"error": "impossible de modifier l'admin"}), 400
+    new_state = toggle_allowed(user)
+    return jsonify({"ok": True, "user": user, "allowed": new_state})
+
+# --------- Speed limit API ---------------------------------------------------
 @app.route('/speed_limit', methods=['GET', 'POST'])
 def speed_limit():
     """
     GET  -> { "speed_limit": 50 | null }
-    POST -> body { "value": 50 } (ou { "speed_limit": 50 }) → met à jour.
+    POST -> body { "value": 50 } (ou { "speed_limit": 50 })
     """
     global _speed_limit_value
     if request.method == 'POST':
@@ -440,6 +449,7 @@ def speed_limit():
     with _speed_limit_lock:
         return jsonify({"speed_limit": _speed_limit_value}), 200
 
+# --------- Flux vidéo & pages -----------------------------------------------
 @app.route('/video_feed')
 def video_feed():
     return Response(generate_frames(),
@@ -448,34 +458,37 @@ def video_feed():
 @app.route('/')
 def index():
     return render_template('simulator.html',
-                       user=session.get("user"),
-                       is_admin=is_admin(),
-                       admin_name=ADMIN_USERNAME)
+                           user=session.get("user"),
+                           is_admin=is_admin(),
+                           admin_name=ADMIN_USERNAME)
 
 @app.route("/chatbot")
 def chatbot():
-    return render_template(
-        "chatbot.html",
-        user=session.get("user"),
-        is_admin=is_admin()
-    )
+    return render_template("chatbot.html",
+                           user=session.get("user"),
+                           is_admin=is_admin())
 
-
+# --------- Enforcement + simulate -------------------------------------------
 @app.route('/simulate', methods=['POST'])
 def simulate():
-    action = request.json.get('action')
+    user = session.get("user")
+    if not is_admin() and not get_allowed(user):
+        return jsonify({"ok": False, "allowed": False, "error": "disabled_by_admin"}), 403
+    action = (request.json or {}).get('action')
     envoyer_message(action)
     print(f"Commande envoyée: {action}")
-    return jsonify({"status": "success", "action": action})
+    return jsonify({"status": "success", "action": action, "allowed": True})
 
-# --------- CAPTURE manuelle + OCR -------------------------------------------
+# --------- Capture manuelle + OCR -------------------------------------------
 @app.route('/capture_speed_sign', methods=['POST'])
 def capture_speed_sign():
-    # Récupère un snapshot courant
+    user = session.get("user")
+    if not is_admin() and not get_allowed(user):
+        return jsonify({"ok": False, "allowed": False, "error": "disabled_by_admin"}), 403
+
     with _last_frame_lock:
         frame = _last_frame.copy() if '_last_frame' in globals() and _last_frame is not None else None
 
-    # Fallback: tente de lire directement la caméra si pas de frame en mémoire
     if frame is None:
         if ensure_camera() is not None:
             for _ in range(3):
@@ -487,15 +500,12 @@ def capture_speed_sign():
         if frame is None:
             return jsonify({"ok": False, "error": "Aucun frame disponible"}), 503
 
-    # Essaie de trouver un panneau pour croper (sinon, image complète)
     boxes = detect_speed_limit_candidates(frame)
     used_crop = False
-    # Sauvegarde le FULL frame
     ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     full_path = os.path.join(SNAP_DIR, f"capture_{ts}_full.jpg")
     cv2.imwrite(full_path, frame)
 
-    # Sauvegarde le ROI (crop si trouvé, sinon image complète)
     roi = frame
     if boxes:
         bx = max(boxes, key=lambda b: b[2]*b[3])
@@ -510,7 +520,6 @@ def capture_speed_sign():
     crop_path = os.path.join(SNAP_DIR, f"capture_{ts}{'_crop' if used_crop else ''}.jpg")
     cv2.imwrite(crop_path, roi)
 
-    # OCR sur le ROI
     data_url = _quick_compress_to_b64_jpeg(roi)
     if not data_url:
         return jsonify({"ok": False, "error": "Encodage image échoué"}), 500
@@ -522,19 +531,14 @@ def capture_speed_sign():
         "ok": True,
         "detected": detected,
         "used_crop": used_crop,
-        "saved_path": crop_path,   # pour /describe_image (ROI)
-        "full_path": full_path,    # pour affichage dans le chat via /snap
+        "saved_path": crop_path,
+        "full_path": full_path,
         "frame_size": {"w": int(frame.shape[1]), "h": int(frame.shape[0])}
     }), 200
 
-
-# --------- NOUVEAU : servir l'image capturée de façon sûre -------------------
-@app.route('/snap', methods=['GET'])  # >>> CHANGEMENT (NOUVELLE ROUTE)
+# --------- Servir une image capturée ----------------------------------------
+@app.route('/snap', methods=['GET'])
 def snap():
-    """
-    GET /snap?path=<chemin absolu vers image dans SNAP_DIR>
-    Sert uniquement des fichiers contenus dans SNAP_DIR.
-    """
     raw = (request.args.get('path') or '').strip()
     if not raw:
         return "path manquant", 400
@@ -542,7 +546,6 @@ def snap():
     try:
         abs_path = os.path.realpath(raw)
         root = os.path.realpath(SNAP_DIR)
-        # Autorise SNAP_DIR lui-même (listing refusé) ou un chemin strictement dessous
         if abs_path != root and not abs_path.startswith(root + os.sep):
             return "Chemin non autorisé", 403
         if not os.path.exists(abs_path) or not os.path.isfile(abs_path):
@@ -550,7 +553,6 @@ def snap():
     except Exception:
         return "Chemin invalide", 400
 
-    # Déduit un mimetype basique (jpeg par défaut)
     mimetype = "image/jpeg"
     if abs_path.lower().endswith(".png"):
         mimetype = "image/png"
@@ -559,30 +561,14 @@ def snap():
 
     return send_file(abs_path, mimetype=mimetype, as_attachment=False, download_name=os.path.basename(abs_path))
 
-
-# --------- DESCRIPTION IA : réponse COMPLÈTE (plus de limite) ---------------
-# --------- DESCRIPTION IA : réponse COMPLÈTE (chat) OU 5 MOTS (simulateur) --
+# --------- Description IA ----------------------------------------------------
 @app.route('/describe_image', methods=['POST'])
 def describe_image():
-    """
-    Reçoit { "path": "<chemin image>" } et renvoie { ok, description, data_url?, description_full? }.
-
-    Comportement par défaut :
-      - Appels depuis /chatbot (referer contient 'chatbot')  -> description complète
-      - Appels depuis / (simulator.html) (referer contient 'simulator') -> limité à 5 mots
-      - Sinon -> complète
-
-    Overrides possibles :
-      - JSON: {"brief": true} ou {"mode": "simulator"} force 5 mots
-      - JSON: {"brief": false} ou {"mode": "chat"} force complète
-      - Query params équivalents: ?brief=1 / ?mode=simulator
-    """
     data = request.get_json(silent=True) or {}
     path = (data.get("path") or "").strip()
     if not path:
         return jsonify({"ok": False, "error": "path manquant"}), 400
 
-    # Sécurité chemin: force dans SNAP_DIR
     try:
         abs_path = os.path.abspath(path)
         root = os.path.abspath(SNAP_DIR)
@@ -593,13 +579,10 @@ def describe_image():
     except Exception:
         return jsonify({"ok": False, "error": "Chemin invalide"}), 400
 
-    # Prépare un data URL (sert à la fois au modèle et comme fallback d'affichage)
     data_url = _img_path_to_data_url(abs_path, max_side=640)
     if not data_url:
         return jsonify({"ok": False, "error": "Lecture/encodage image échoué"}), 500
 
-    # Détermination du mode (brief/complet)
-    # 1) Overrides explicites (JSON / query)
     def to_bool(v):
         if isinstance(v, bool): return v
         if isinstance(v, str): return v.strip().lower() in ("1","true","vrai","yes","on")
@@ -609,8 +592,6 @@ def describe_image():
     if brief_override is None:
         brief_override = request.args.get("brief", None)
     mode = (data.get("mode") or request.args.get("mode") or "").strip().lower()
-    print("Mode :")
-    print(mode)
 
     brief = None
     if mode in ("sim", "simulateur", "simulator"):
@@ -620,7 +601,6 @@ def describe_image():
     elif brief_override is not None:
         brief = to_bool(brief_override)
 
-    # 2) Si pas d'override → heuristique par Referer
     if brief is None:
         ref = (request.headers.get("Referer") or "").lower()
         if "simulator" in ref:
@@ -628,9 +608,8 @@ def describe_image():
         elif "chatbot" in ref:
             brief = False
         else:
-            brief = False  # défaut: complet (préserve le comportement du chat)
+            brief = False
 
-    # Prompt vision (réponse complète, qu'on tronquera ensuite si besoin)
     prompt = (
         "Que vois-tu sur l'image ? Réponds en français, de manière complète et précise. "
         "Décris les objets, le contexte (route, météo, trafic), les panneaux visibles, "
@@ -655,15 +634,15 @@ def describe_image():
 
         return jsonify({
             "ok": True,
-            "description": description_out,   # -> ce que consommera le front
-            "data_url": data_url,            # utile pour affichage immédiat
-            "description_full": description_full if brief else None  # debug/optionnel
+            "description": description_out,
+            "data_url": data_url,
+            "description_full": description_full if brief else None
         }), 200
     except Exception as e:
         if DEBUG: print(f"[Describe] Erreur: {e}")
         return jsonify({"ok": False, "error": "Échec description"}), 500
 
-# ========= Chat (inchangé, avec tool-calling) ================================
+# ========= Chat (avec enforcement) ===========================================
 TOOLS = [
     {
         "type": "function",
@@ -701,6 +680,10 @@ SYSTEM_PROMPT = (
 
 @app.route('/chat', methods=['POST'])
 def chat():
+    user = session.get("user")
+    if not is_admin() and not get_allowed(user):
+        return jsonify({"ok": False, "allowed": False, "error": "disabled_by_admin"}), 403
+
     data = request.get_json(force=True) or {}
     user_message = (data.get('message') or "").strip()
     if not user_message:
@@ -739,6 +722,8 @@ def chat():
         reply_text = f"Commande envoyée : {', '.join(commandes_envoyees)}."
 
     return jsonify({
+        "ok": True,
+        "allowed": True,
         "reply": reply_text or "OK",
         "commandes_envoyees": commandes_envoyees or None
     }), 200
