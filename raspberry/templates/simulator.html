@@ -532,6 +532,9 @@
   .logout-btn:hover { background: var(--surface-light); }
   .logout-btn:active { transform: translateY(1px); }
   </style>
+  <script>
+    window.IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+  </script>
 
 </head>
 <body>
@@ -552,6 +555,11 @@
       <div class="user-chip" title="Utilisateur connecté">
         <span class="user-avatar">{{ (user or '?')[:1]|upper }}</span>
         <span class="user-name">{{ user or 'Invité' }}</span>
+        {% if is_admin %}
+        <span class="user-badge" style="margin-left:.25rem; font-size:.75rem; color:#fff; background:linear-gradient(135deg,#f43f5e,#ec4899); padding:.15rem .45rem; border-radius:999px; font-weight:700;">
+          ADMIN
+        </span>
+        {% endif %}
         <form class="logout-form" method="post" action="/logout">
           <button class="logout-btn" type="submit">Déconnexion</button>
         </form>
@@ -582,6 +590,16 @@
         <div class="label">Description image</div>
         <div class="value" id="img-desc">—</div>
       </section>
+      {% if is_admin %}
+      <section class="info" id="admin-users">
+        <div class="label">Utilisateurs connectés (autres)</div>
+        <div class="value">
+          <ul id="online-users" style="list-style:none; padding-left:0; margin:0; display:flex; flex-wrap:wrap; gap:.5rem;">
+            <li style="color:var(--text-muted);">—</li>
+          </ul>
+        </div>
+      </section>
+      {% endif %}
     </aside>
 
     <!-- Center Screen -->
@@ -808,6 +826,41 @@
 
     // init
     setController('vehicle');
+
+      async function refreshOnlineUsers(){
+      if (!window.IS_ADMIN) return;
+      try{
+        const r = await fetch('/users/online');
+        if(!r.ok) return;
+        const j = await r.json();
+        const ul = document.getElementById('online-users');
+        if (!ul) return;
+        ul.innerHTML = '';
+        const users = (j && Array.isArray(j.users)) ? j.users : [];
+        if (users.length === 0){
+          const li = document.createElement('li');
+          li.style.color = 'var(--text-muted)';
+          li.textContent = 'Personne d’autre en ligne';
+          ul.appendChild(li);
+        }else{
+          users.forEach(pseudo => {
+            const li = document.createElement('li');
+            li.textContent = pseudo;
+            li.style.padding = '.2rem .55rem';
+            li.style.border = '1px solid var(--border)';
+            li.style.borderRadius = '999px';
+            li.style.background = 'var(--surface)';
+            ul.appendChild(li);
+          });
+        }
+      }catch(_){}
+    }
+
+    if (window.IS_ADMIN){
+      refreshOnlineUsers();
+      setInterval(refreshOnlineUsers, 3000);
+    }
+
   </script>
 </body>
 </html>

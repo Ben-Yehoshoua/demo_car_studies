@@ -1,5 +1,5 @@
 # app.py — version avec /snap et description SANS LIMITE
-from flask import Flask, render_template, request, jsonify, Response, send_file  # >>> CHANGEMENT (send_file)
+from flask import Flask, render_template, request, jsonify, Response, send_file, session, flash, get_flashed_messages, redirect, url_for  # + session, redirect, url_for
 import cv2
 import atexit
 import time
@@ -16,7 +16,7 @@ from typing import Optional, Union
 from datetime import datetime
 
 # ========= Configuration générale ============================================
-DEBUG = False
+DEBUG = True
 
 # Port série pour Arduino (désactivé si DEBUG=True)
 if DEBUG:
@@ -149,7 +149,23 @@ _OCR_EXEC = ThreadPoolExecutor(max_workers=1)
 
 # Charge variables d’environnement (.env)
 load_dotenv()
+
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+
+# --- Auth / rôles ------------------------------------------------------------
+SHARED_PASSWORD = os.getenv("APP_SHARED_PASSWORD", "change-me")  # << mot de passe commun défini par toi
+SECRET_KEY = os.getenv("APP_SECRET_KEY", "dev-key-change-me")    # << clé session
+ADMIN_USERNAME = os.getenv("APP_ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("APP_ADMIN_PASSWORD", "changeme")
+
+# Suivi très simple (in-memory, process unique)
+_online_users = set()
+_online_lock = RLock()
+
+def is_admin() -> bool:
+    return session.get("user") == ADMIN_USERNAME
+
 
 def _quick_compress_to_b64_jpeg(img_bgr: np.ndarray, max_side: int = 320) -> Optional[str]:
     """Convertit un BGR en JPEG base64 (data URL), en niveaux de gris et réduit."""
@@ -321,6 +337,92 @@ def set_speed_limit(value: Optional[Union[int, float]]):
 
 # ========= Flask app / Routes ================================================
 app = Flask(__name__)
+app.secret_key = SECRET_KEY
+
+def is_logged_in() -> bool:
+    return bool(session.get("user"))
+
+# chemins accessibles sans login
+_ANON_PATHS = {
+    "/login",
+    "/snap",           # on peut le passer derrière login si tu préfères
+}
+def _is_anon_allowed(path: str) -> bool:
+    if path == "/":
+        return False
+    if path.startswith("/static/"):
+        return True
+    # autorise favicon
+    if path in ("/favicon.ico",):
+        return True
+    # GET /snap?path=... : à toi de décider. Ici: protégé, donc non.
+    return path in _ANON_PATHS
+
+@app.before_request
+def require_auth():
+    # laisse passer les requêtes anonymes
+    if _is_anon_allowed(request.path):
+        return
+    # protégé par login
+    # si loggé, garde la trace
+    if is_logged_in():
+        with _online_lock:
+            _online_users.add(session["user"])
+    if not is_logged_in():
+        # garde l’URL pour y revenir après
+        return redirect(url_for("login", next=request.path))
+
+# ----------- NOUVELLES ROUTES AUTH ------------------------------------------
+@app.route("/login", methods=["GET", "POST"])
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    error = None
+    if request.method == "POST":
+        username = (request.form.get("username") or "").strip()
+        password = request.form.get("password") or ""
+
+        # --- ADMIN d'abord : et on RETURN si OK ---------------------------
+        if username == ADMIN_USERNAME:
+            if password != ADMIN_PASSWORD:
+                flash("Identifiants incorrects.", "error")
+                return redirect(url_for('login'))
+            session["user"] = username
+            with _online_lock:
+                _online_users.add(username)
+            nxt = request.args.get("next") or url_for("index")
+            return redirect(nxt)   # <<< IMPORTANT : ne pas tomber dans la suite
+
+        # --- Utilisateur standard ----------------------------------------
+        if not username:
+            error = "Merci de renseigner un pseudo."
+        elif password != SHARED_PASSWORD:
+            error = "Mot de passe incorrect."
+        else:
+            session["user"] = username
+            with _online_lock:
+                _online_users.add(username)
+            nxt = request.args.get("next") or url_for("index")
+            return redirect(nxt)
+
+    return render_template("login.html", error=error)
+
+@app.route("/logout", methods=["POST", "GET"])
+def logout():
+    user_to_remove = session.get("user")
+    with _online_lock:
+        if user_to_remove in _online_users:
+            _online_users.remove(user_to_remove)
+    session.clear()
+    return redirect(url_for("login"))
+
+@app.route('/users/online', methods=['GET'])
+def users_online():
+    if not is_logged_in() or not is_admin():
+        return jsonify({"error": "forbidden"}), 403
+    me = session.get("user")
+    with _online_lock:
+        others = sorted(u for u in _online_users if u != me)
+    return jsonify({"users": others})
 
 @app.route('/speed_limit', methods=['GET', 'POST'])
 def speed_limit():
@@ -345,11 +447,19 @@ def video_feed():
 
 @app.route('/')
 def index():
-    return render_template('simulator.html')
+    return render_template('simulator.html',
+                       user=session.get("user"),
+                       is_admin=is_admin(),
+                       admin_name=ADMIN_USERNAME)
 
-@app.route('/chatbot')
+@app.route("/chatbot")
 def chatbot():
-    return render_template('chatbot.html')
+    return render_template(
+        "chatbot.html",
+        user=session.get("user"),
+        is_admin=is_admin()
+    )
+
 
 @app.route('/simulate', methods=['POST'])
 def simulate():
@@ -499,6 +609,8 @@ def describe_image():
     if brief_override is None:
         brief_override = request.args.get("brief", None)
     mode = (data.get("mode") or request.args.get("mode") or "").strip().lower()
+    print("Mode :")
+    print(mode)
 
     brief = None
     if mode in ("sim", "simulateur", "simulator"):
