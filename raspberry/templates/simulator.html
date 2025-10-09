@@ -6,153 +6,506 @@
   <title>Simulateur Voiture – Mode manuel (capture panneau)</title>
   <style>
     :root {
-      --bg1: #667eea; /* indigo */
-      --bg2: #764ba2; /* purple */
-      --panel: rgba(255, 255, 255, 0.95);
-      --glass: rgba(255, 255, 255, 0.12);
-      --text: #2d3748;
-      --muted: #718096;
-      --brand: #6b46c1;
-      --accent: #3182ce;
-      --ok: #10b981;
-      --warn: #f59e0b;
-      --err: #ef4444;
+      --bg-dark: #f8fafc;
+      --bg-light: #ffffff;
+      --surface: #f1f5f9;
+      --surface-light: #e2e8f0;
+      --primary: #3b82f6;
+      --primary-dark: #2563eb;
+      --secondary: #8b5cf6;
+      --accent: #06b6d4;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --border: rgba(15, 23, 42, 0.1);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    
     body {
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-      background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 100%);
+      font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg-dark);
       min-height: 100vh;
-      color: var(--text);
+      color: var(--text-primary);
+      line-height: 1.6;
     }
 
-    /* header */
+    /* Header */
     .header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 20px; gap: 12px;
-      background: var(--glass); backdrop-filter: blur(10px);
-      border-bottom: 1px solid rgba(255,255,255,.18);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.5rem;
+      background: var(--bg-light);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
-    .header h1 { color: #fff; font-weight: 500; font-size: 1.4rem; letter-spacing: .2px; }
-    .nav-tabs { display:flex; gap:.6rem; }
-    .nav-tab { text-decoration:none; color:#fff; background: rgba(255,255,255,.22); padding:.5rem .9rem; border-radius: 999px; transition:.2s; }
-    .nav-tab:hover, .nav-tab.active { background: rgba(255,255,255,.3); transform: translateY(-1px); }
+    
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-size: 1.5rem;
+    }
+    
+    .header h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.025em;
+    }
+    
+    .nav-tabs {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .nav-tab {
+      text-decoration: none;
+      color: var(--text-secondary);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      transition: all 0.2s;
+      font-weight: 500;
+      font-size: 0.875rem;
+    }
+    
+    .nav-tab:hover {
+      background: var(--surface);
+      color: var(--text-primary);
+    }
+    
+    .nav-tab.active {
+      background: var(--primary);
+      color: white;
+    }
 
-    /* layout */
+    /* Layout */
     .layout {
       display: grid;
-      grid-template-columns: 260px 1fr 320px; /* left | center | right */
-      gap: 14px; padding: 14px; height: calc(100vh - 64px);
+      grid-template-columns: 280px 1fr 340px;
+      gap: 1.5rem;
+      padding: 1.5rem;
+      height: calc(100vh - 73px);
+    }
+    
+    .panel {
+      background: var(--bg-light);
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      overflow: hidden;
     }
 
-    .panel { background: var(--panel); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.12); backdrop-filter: blur(10px); }
-
-    /* left info */
-    .left { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-    .left h3 { text-align:center; color:#4a5568; font-weight: 600; margin-bottom: 6px; }
+    /* Left Panel */
+    .left {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1.5rem;
+    }
+    
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    
     .info {
-      background: rgba(116, 75, 162, 0.08);
-      border-left: 4px solid var(--brand);
-      padding: 12px 12px; border-radius: 12px;
+      background: var(--surface);
+      padding: 1rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      transition: all 0.2s;
     }
-    .label { font-size: .78rem; color: var(--muted); letter-spacing:.3px; text-transform: uppercase; }
-    .value { margin-top: 6px; font-size: 1.05rem; font-weight: 600; color: var(--text); min-height: 1.4em; }
-
-    /* center screen */
-    .screen { position: relative; overflow: hidden; }
-    .screen video, .screen img { width: 100%; height: 100%; object-fit: cover; border-radius: 16px; display:block; }
-    .shine:before {
-      content: ""; position: absolute; inset: 0; pointer-events: none;
-      background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,.10) 50%, transparent 70%);
-      animation: shine 3s linear infinite; border-radius: 16px;
+    
+    .info:hover {
+      border-color: var(--primary);
+      transform: translateY(-1px);
     }
-    @keyframes shine { 0%{ transform: translateX(-100%);} 100%{ transform: translateX(100%);} }
+    
+    .label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    
+    .value {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      min-height: 1.5em;
+    }
+    
+    #speed-limit {
+      font-size: 1.5rem;
+      color: var(--success);
+    }
 
-    /* right controls */
-    .right { padding: 16px; display:flex; flex-direction: column; gap: 16px; align-items:center; }
-    .right h3 { color:#4a5568; font-weight: 600; }
+    /* Center Screen */
+    .screen {
+      position: relative;
+      background: var(--bg-dark);
+      overflow: hidden;
+    }
+    
+    .screen video,
+    .screen img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    
+    .screen-badge {
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      background: rgba(59, 130, 246, 0.05);
+      backdrop-filter: blur(10px);
+      color: var(--text-primary);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border: 1px solid var(--border);
+    }
+    
+    .screen-badge strong {
+      color: var(--accent);
+    }
 
-    .quick-actions { display:flex; gap:18px; flex-wrap: wrap; justify-content:center; }
-    .quick { display:flex; flex-direction: column; align-items: center; gap:6px; }
+    /* Right Panel */
+    .right {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      padding: 1.5rem;
+    }
+
+    /* Quick Actions */
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+    
+    .quick {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
     .icon-btn {
-      width:64px; height:64px; border-radius: 50%; border:none; cursor:pointer; background:linear-gradient(135deg, #f6ad55, #ed8936); color:#fff; font-size:28px; box-shadow: 0 8px 18px rgba(0,0,0,.18); transition: transform .08s ease, filter .2s ease, opacity .2s; display:grid; place-items:center;
+      width: 64px;
+      height: 64px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      font-size: 1.75rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transition: all 0.2s;
+      display: grid;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
     }
-    .icon-btn.secondary { background: linear-gradient(135deg, #9f7aea, #7c3aed); }
-    .icon-btn.tertiary { background: linear-gradient(135deg, #34d399, #059669); }
-    .icon-btn[disabled]{ opacity:.6; cursor:not-allowed; filter: grayscale(.2); }
-    .icon-btn:active { transform: scale(.96); }
-    .quick small { font-size: .78rem; color: var(--muted); }
+    
+    .icon-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    
+    .icon-btn:hover::before {
+      opacity: 1;
+    }
+    
+    .icon-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    }
+    
+    .icon-btn:active {
+      transform: translateY(0);
+    }
+    
+    .icon-btn[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+    
+    .icon-btn:nth-child(1) {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+    }
+    
+    .icon-btn.secondary {
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    }
+    
+    .icon-btn.tertiary {
+      background: linear-gradient(135deg, #10b981, #059669);
+    }
+    
+    .quick small {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
 
-    /* joystick */
-    .joystick-wrap { width: 220px; height: 220px; position: relative; }
+    /* Controller Switch */
+    .controller-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    
+    .controller-switch {
+      display: flex;
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 4px;
+      position: relative;
+      border: 1px solid var(--border);
+    }
+    
+    .controller-pill {
+      flex: 1;
+      position: relative;
+      z-index: 2;
+      border: none;
+      background: transparent;
+      padding: 0.75rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--text-secondary);
+      transition: color 0.2s;
+      font-size: 0.875rem;
+    }
+    
+    .controller-pill[aria-pressed="true"] {
+      color: var(--text-primary);
+    }
+    
+    .controller-indicator {
+      position: absolute;
+      z-index: 1;
+      top: 4px;
+      bottom: 4px;
+      width: calc(50% - 4px);
+      left: 4px;
+      border-radius: 8px;
+      background: var(--primary);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .controller-switch.camera .controller-indicator {
+      left: calc(50% + 0px);
+    }
+    
+    .controller-hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    /* Joystick */
+    .joystick-wrap {
+      width: 240px;
+      height: 240px;
+      margin: 0 auto;
+      position: relative;
+    }
+    
     .joystick {
-      position: relative; width:100%; height:100%;
-      background: radial-gradient(circle at 30% 30%, #f7fafc, #e2e8f0);
-      border-radius: 50%; box-shadow: inset 0 6px 12px rgba(0,0,0,.12), 0 12px 24px rgba(0,0,0,.15);
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: var(--surface);
+      border-radius: 50%;
+      box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
     }
+    
     .dpad-btn {
-      position: absolute; width: 64px; height: 64px; border-radius: 16px; border:none; cursor:pointer; font-size: 22px; color:#fff; background: linear-gradient(135deg, #4299e1, var(--accent));
-      display:grid; place-items:center; box-shadow: 0 10px 20px rgba(0,0,0,.18); transition: transform .06s ease;
+      position: absolute;
+      width: 68px;
+      height: 68px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      font-size: 1.5rem;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      display: grid;
+      place-items: center;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+      transition: all 0.1s;
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
-    .dpad-btn:active { transform: translateY(1px) scale(.98); }
-    .dpad-up    { top: 10px; left: 50%; transform: translateX(-50%); }
-    .dpad-down  { bottom: 10px; left: 50%; transform: translateX(-50%); }
-    .dpad-left  { left: 10px; top: 50%; transform: translateY(-50%); }
-    .dpad-right { right: 10px; top: 50%; transform: translateY(-50%); }
+    
+    .dpad-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
+    }
+    
+    .dpad-btn:active {
+      transform: scale(0.95);
+    }
+    
+    .dpad-up { top: 8px; left: 50%; transform: translateX(-50%); }
+    .dpad-down { bottom: 8px; left: 50%; transform: translateX(-50%); }
+    .dpad-left { left: 8px; top: 50%; transform: translateY(-50%); }
+    .dpad-right { right: 8px; top: 50%; transform: translateY(-50%); }
+    
+    .dpad-up:hover { transform: translateX(-50%) scale(1.05); }
+    .dpad-down:hover { transform: translateX(-50%) scale(1.05); }
+    .dpad-left:hover { transform: translateY(-50%) scale(1.05); }
+    .dpad-right:hover { transform: translateY(-50%) scale(1.05); }
+    
+    .dpad-up:active { transform: translateX(-50%) scale(0.95); }
+    .dpad-down:active { transform: translateX(-50%) scale(0.95); }
+    .dpad-left:active { transform: translateY(-50%) scale(0.95); }
+    .dpad-right:active { transform: translateY(-50%) scale(0.95); }
 
-    .hint { font-size:.8rem; color: var(--muted); text-align:center; margin-top:4px; }
-
-    /* toast */
-    .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
-      background: var(--panel); border-radius: 999px; padding: 10px 16px; box-shadow: 0 10px 30px rgba(0,0,0,.18); display:none; align-items:center; gap:8px; }
-
-    /* speed-limit flash */
-    .flash { animation: pulse .8s ease; }
-    @keyframes pulse { 0%{ box-shadow: 0 0 0 0 rgba(16,185,129,.6);} 100%{ box-shadow: 0 0 0 22px rgba(16,185,129,0);} }
-
-    @media (max-width: 1024px){
-      .layout { grid-template-columns: 1fr; height: auto; }
-      .right, .left { align-items: stretch; }
-      .right { order: 3; }
-      .left { order: 2; }
-      .screen { order: 1; height: 55vh; }
-      .joystick-wrap { margin: 0 auto; }
+    .hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 0.5rem;
+    }
+    
+    .hint strong {
+      color: var(--accent);
+      font-weight: 600;
     }
 
-    /* === Mobile layout overrides ======================================= */
-    @media (max-width: 1024px){
-      .right { order: 2; }
-      .left  { order: 3; }
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      gap: 0.75rem;
+      z-index: 1000;
+      backdrop-filter: blur(10px);
+    }
 
-      .left {
-        display: flex; flex-direction: row; align-items: center;
-        gap: 10px; padding: 10px 12px; overflow:auto; -webkit-overflow-scrolling: touch;
+    /* Flash animation */
+    .flash {
+      animation: pulse 0.8s ease;
+    }
+    
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      100% { box-shadow: 0 0 0 20px rgba(16, 185, 129, 0); }
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 1024px) {
+      .layout {
+        grid-template-columns: 1fr;
+        height: auto;
+        gap: 1rem;
       }
-      .left h3 { display: none; }
-      .left .info { display: inline-flex; align-items: baseline; gap: 6px; background: transparent; border: none; padding: 6px 10px; border-radius: 999px; white-space: nowrap; }
-      .left .label { font-size: .75rem; letter-spacing: .3px; text-transform: uppercase; color: var(--muted); }
-      .left .value { font-size: .95rem; font-weight: 700; color: var(--text); margin-top: 0; min-height: auto; }
-
-      .screen { aspect-ratio: 16/9; max-height: 58dvh; height: auto; overflow:hidden; background:#000; }
-      .screen video, .screen img { width: 100%; height: 100%; object-fit: contain; border-radius: 16px; display:block; }
-
-      .right { padding: 12px; }
-      .quick-actions { gap: 12px; }
-      .icon-btn { width: 56px; height: 56px; font-size: 24px; }
-      .joystick-wrap { width: 200px; height: 200px; margin: 8px auto 0; }
-      .dpad-btn { width: 56px; height: 56px; }
-
-      .toast { left: 50%; transform: translateX(-50%); bottom: max(12px, env(safe-area-inset-bottom, 0px) + 12px); max-width: calc(100vw - 24px); }
-
-      .layout { padding: max(12px, env(safe-area-inset-top, 0px)) 12px max(12px, env(safe-area-inset-bottom, 0px)) 12px; }
-      .shine:before { display: none; }
+      
+      .screen {
+        order: 1;
+        aspect-ratio: 16/9;
+        max-height: 60vh;
+      }
+      
+      .right {
+        order: 2;
+      }
+      
+      .left {
+        order: 3;
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 1rem;
+      }
+      
+      .left .panel-header {
+        display: none;
+      }
+      
+      .left .info {
+        min-width: 140px;
+        flex-shrink: 0;
+      }
+      
+      .quick-actions {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      
+      .icon-btn {
+        width: 56px;
+        height: 56px;
+        font-size: 1.5rem;
+      }
+      
+      .joystick-wrap {
+        width: 200px;
+        height: 200px;
+      }
+      
+      .dpad-btn {
+        width: 56px;
+        height: 56px;
+      }
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>🚗 Drive Simulator Pro</h1>
+    <div class="header-left">
+      <div class="logo">
+        <div class="logo-icon">🚗</div>
+        <h1>Drive Simulator Pro</h1>
+      </div>
+    </div>
     <nav class="nav-tabs">
       <a class="nav-tab active" href="/">Simulateur</a>
       <a class="nav-tab" href="/chatbot">Chatbot</a>
@@ -160,9 +513,11 @@
   </div>
 
   <main class="layout">
-    <!-- Left infos -->
+    <!-- Left Panel -->
     <aside class="panel left">
-      <h3>ℹ️ Informations</h3>
+      <div class="panel-header">
+        📊 Informations
+      </div>
       <section class="info">
         <div class="label">Vitesse Limite</div>
         <div class="value" id="speed-limit">—</div>
@@ -175,24 +530,25 @@
         <div class="label">Dernière commande</div>
         <div class="value" id="last-command">Aucune</div>
       </section>
-      <!-- NOUVEAU: description IA sous "Dernière commande" -->
       <section class="info" aria-live="polite" aria-atomic="true">
         <div class="label">Description image</div>
         <div class="value" id="img-desc">—</div>
       </section>
     </aside>
 
-    <!-- Center screen -->
-    <section class="panel screen shine" id="screen">
+    <!-- Center Screen -->
+    <section class="panel screen" id="screen">
       <img src="/video_feed" alt="Flux vidéo" />
-      <div style="position:absolute; top:10px; left:10px; background:rgba(0,0,0,.45); color:#fff; padding:6px 10px; border-radius:999px; font-size:.85rem;">
+      <div class="screen-badge">
         Mode détection: <strong>manuel</strong>
       </div>
     </section>
 
-    <!-- Right controls -->
+    <!-- Right Panel -->
     <aside class="panel right">
-      <h3>🎮 Commandes</h3>
+      <div class="panel-header">
+        🎮 Commandes
+      </div>
 
       <div class="quick-actions" aria-label="Actions rapides">
         <div class="quick">
@@ -209,15 +565,24 @@
         </div>
       </div>
 
+      <div class="controller-section">
+        <div id="controllerSwitch" class="controller-switch" role="tablist" aria-label="Sélecteur de manette">
+          <div class="controller-indicator" aria-hidden="true"></div>
+          <button id="pillVehicle" class="controller-pill" role="tab" aria-selected="true" aria-pressed="true" onclick="setController('vehicle')">🚗 Véhicule</button>
+          <button id="pillCamera" class="controller-pill" role="tab" aria-selected="false" aria-pressed="false" onclick="setController('camera')">🎥 Caméra</button>
+        </div>
+        <div class="controller-hint" id="controllerHint">Flèches clavier = Véhicule · ZQSD = Caméra · 1/2 pour switcher</div>
+      </div>
+
       <div class="joystick-wrap" aria-label="Manette directionnelle">
         <div class="joystick">
-          <button class="dpad-btn dpad-up"    title="Avancer" aria-label="Avancer" onclick="sendAction('avance')">⬆️</button>
-          <button class="dpad-btn dpad-left"  title="Tourner à gauche" aria-label="Tourner à gauche" onclick="sendAction('tourne_a_gauche')">⬅️</button>
-          <button class="dpad-btn dpad-right" title="Tourner à droite" aria-label="Tourner à droite" onclick="sendAction('tourne_a_droite')">➡️</button>
-          <button class="dpad-btn dpad-down"  title="Reculer" aria-label="Reculer" onclick="sendAction('recule')">⬇️</button>
+          <button class="dpad-btn dpad-up" id="btn-up" title="Avancer" aria-label="Avancer">⬆️</button>
+          <button class="dpad-btn dpad-left" id="btn-left" title="Gauche" aria-label="Gauche">⬅️</button>
+          <button class="dpad-btn dpad-right" id="btn-right" title="Droite" aria-label="Droite">➡️</button>
+          <button class="dpad-btn dpad-down" id="btn-down" title="Reculer" aria-label="Reculer">⬇️</button>
         </div>
       </div>
-      <p class="hint">Astuce : utilisez aussi les touches fléchées du clavier. Touche <strong>C</strong> = Photo panneau.</p>
+      <p class="hint">Astuce : touche <strong>C</strong> = Photo panneau.</p>
     </aside>
   </main>
 
@@ -226,23 +591,18 @@
   <script>
     // --- State --------------------------------------------------------------
     const lastCmdKey = 'simu:last-command';
+    let currentController = 'vehicle'; // 'vehicle' | 'camera'
 
     function setLastCommand(cmd){
       const map = {
-        'avance': 'Avancer',
-        'recule': 'Reculer',
-        'tourne_a_gauche': 'Tourner à gauche',
-        'tourne_a_droite': 'Tourner à droite',
-        'klaxonne': 'Klaxonner',
-        'clignotte': 'Clignoter',
-        'vitesse': 'Évaluer Vitesse',
-        'performance': 'Évaluer Performance',
-        'capture': 'Capture panneau'
+        'avance': 'Avancer', 'recule': 'Reculer', 'tourne_a_gauche': 'Tourner à gauche', 'tourne_a_droite': 'Tourner à droite',
+        'klaxonne': 'Klaxonner', 'clignotte': 'Clignoter', 'vitesse': 'Évaluer Vitesse', 'performance': 'Évaluer Performance', 'capture': 'Capture panneau',
+        'cam_up':'Caméra ↑', 'cam_down':'Caméra ↓', 'cam_left':'Caméra ←', 'cam_right':'Caméra →'
       };
       const label = map[cmd] || cmd;
       document.getElementById('last-command').textContent = label;
-      try { localStorage.setItem(lastCmdKey, label); } catch(_){}
-      showToast(`Dernière commande : ${label}`);
+      try { localStorage.setItem(lastCmdKey, label); } catch(_){ }
+      showToast(`Dernière commande : ${label}`);
     }
 
     function showToast(text, ok=true){
@@ -255,161 +615,151 @@
       window.__toastTimer = setTimeout(()=>{ toast.style.display='none'; }, 1800);
     }
 
-    // Load persisted last command on startup
     (function(){
-      try {
-        const saved = localStorage.getItem(lastCmdKey);
-        if(saved){ document.getElementById('last-command').textContent = saved; }
-      } catch(_){ /* ignore */ }
+      try { const saved = localStorage.getItem(lastCmdKey); if(saved){ document.getElementById('last-command').textContent = saved; } } catch(_){ }
     })();
 
-    // --- Backend interaction (movement) ------------------------------------
+    // --- Backend interaction ----------------------------------------------
     function sendAction(action){
-      fetch('/simulate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action })
-      })
+      fetch('/simulate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) })
       .then(r => r.json())
-      .then(data => {
-        flashOverlay(action);
-        setLastCommand(data.action || action);
-      })
-      .catch(err => {
-        console.error('Erreur:', err);
-        flashOverlay('Erreur');
-      });
+      .then(data => { flashOverlay(action); setLastCommand(data.action || action); })
+      .catch(err => { console.error('Erreur:', err); flashOverlay('Erreur'); });
     }
 
-    // Visual micro‑feedback on the screen
     function flashOverlay(action){
       const messages = {
-        'avance': 'Avance…',
-        'recule': 'Recule…',
-        'tourne_a_gauche': 'Gauche…',
-        'tourne_a_droite': 'Droite…',
-        'klaxonne': 'BEEP! Klaxon',
-        'clignotte': 'Clignotants',
-        'capture': 'Capture…',
-        'Erreur': 'Erreur'
+        'avance': 'Avance…', 'recule': 'Recule…', 'tourne_a_gauche': 'Gauche…', 'tourne_a_droite': 'Droite…',
+        'klaxonne': 'BEEP! Klaxon', 'clignotte': 'Clignotants', 'capture': 'Capture…',
+        'cam_up':'Caméra ↑', 'cam_down':'Caméra ↓', 'cam_left':'Caméra ←', 'cam_right':'Caméra →',
+        'Erreur':'Erreur'
       };
       const scr = document.getElementById('screen');
       const tag = document.createElement('div');
-      tag.style.position = 'absolute';
-      tag.style.inset = '0';
-      tag.style.display = 'grid';
-      tag.style.placeItems = 'center';
-      tag.style.pointerEvents = 'none';
-      tag.style.borderRadius = '16px';
-      tag.style.backdropFilter = 'blur(2px)';
-      tag.style.background = 'rgba(0,0,0,.18)';
-      tag.style.color = '#fff';
-      tag.style.fontSize = '1.4rem';
+      tag.style.position = 'absolute'; tag.style.inset = '0'; tag.style.display = 'grid'; tag.style.placeItems = 'center'; tag.style.pointerEvents = 'none'; tag.style.borderRadius = '16px'; tag.style.backdropFilter = 'blur(2px)'; tag.style.background = 'rgba(0,0,0,.18)'; tag.style.color = '#fff'; tag.style.fontSize = '1.4rem';
       tag.textContent = messages[action] || action;
       scr.appendChild(tag);
       setTimeout(()=>{ tag.remove(); }, 500);
     }
 
-    // Keyboard support for arrows & capture
+    // --- Controller switch -------------------------------------------------
+    function setController(type){
+      currentController = (type === 'camera') ? 'camera' : 'vehicle';
+      const switchEl = document.getElementById('controllerSwitch');
+      switchEl.classList.toggle('camera', currentController === 'camera');
+      document.getElementById('pillVehicle').setAttribute('aria-pressed', currentController==='vehicle');
+      document.getElementById('pillCamera').setAttribute('aria-pressed', currentController==='camera');
+      document.getElementById('pillVehicle').setAttribute('aria-selected', currentController==='vehicle');
+      document.getElementById('pillCamera').setAttribute('aria-selected', currentController==='camera');
+      updateDpadTitles();
+      const hint = (currentController==='vehicle')?
+        'Flèches clavier = Véhicule · ZQSD = Caméra · 1/2 pour switcher':
+        'ZQSD = Caméra · Flèches = Véhicule · 1/2 pour switcher';
+      document.getElementById('controllerHint').textContent = hint;
+    }
+
+    function updateDpadTitles(){
+      if(currentController==='vehicle'){
+        document.getElementById('btn-up').title = 'Avancer';
+        document.getElementById('btn-down').title = 'Reculer';
+        document.getElementById('btn-left').title = 'Tourner à gauche';
+        document.getElementById('btn-right').title = 'Tourner à droite';
+      }else{
+        document.getElementById('btn-up').title = 'Caméra haut';
+        document.getElementById('btn-down').title = 'Caméra bas';
+        document.getElementById('btn-left').title = 'Caméra gauche';
+        document.getElementById('btn-right').title = 'Caméra droite';
+      }
+    }
+
+    // Attach click handlers for D-pad once
+    ['up','down','left','right'].forEach(dir => {
+      document.getElementById(`btn-${dir}`).addEventListener('click', () => {
+        if(currentController==='vehicle'){
+          const map = { up:'avance', down:'recule', left:'tourne_a_gauche', right:'tourne_a_droite' };
+          sendAction(map[dir]);
+        } else {
+          const map = { up:'cam_up', down:'cam_down', left:'cam_left', right:'cam_right' };
+          sendAction(map[dir]);
+        }
+      });
+    });
+
+    // Keyboard support
     window.addEventListener('keydown', (e)=>{
+      // quick switch
+      if(e.key==='1'){ setController('vehicle'); }
+      if(e.key==='2'){ setController('camera'); }
+
+      // capture
+      if(e.key==='c' || e.key==='C'){ captureSpeedSign(); }
+
+      // arrows always control VEHICLE
       if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
         e.preventDefault();
         const map = { ArrowUp:'avance', ArrowDown:'recule', ArrowLeft:'tourne_a_gauche', ArrowRight:'tourne_a_droite' };
         sendAction(map[e.key]);
       }
-      if(e.key === 'c' || e.key === 'C'){ captureSpeedSign(); }
+
+      // ZQSD (AZERTY) always control CAMERA
+      const k = e.key.toLowerCase();
+      if(['z','q','s','d'].includes(k)){
+        e.preventDefault();
+        const map = { z:'cam_up', s:'cam_down', q:'cam_left', d:'cam_right' };
+        sendAction(map[k]);
+      }
     });
 
-    // --- Rafraîchit l'affichage de la vitesse limite depuis /speed_limit ---
+    // --- Speed limit polling ----------------------------------------------
     async function refreshSpeedLimit(){
       try{
         const r = await fetch('/speed_limit');
         const j = await r.json();
         const el = document.getElementById('speed-limit');
         const v = j && j.speed_limit;
-        if(v === null || v === undefined){
-          el.textContent = '—';
-        }else{
-          const txt = Number.isInteger(v) ? `${v} km/h` : `${(+v).toFixed(1)} km/h`;
-          el.textContent = txt;
-        }
+        if(v === null || v === undefined){ el.textContent = '—'; }
+        else { el.textContent = (Number.isInteger(v) ? `${v} km/h` : `${(+v).toFixed(1)} km/h`); }
       }catch(e){ /* silencieux */ }
     }
     refreshSpeedLimit();
     setInterval(refreshSpeedLimit, 1000);
 
-    // --- Helpers description IA -------------------------------------------
-    function setImageDescription(text){
-      document.getElementById('img-desc').textContent = text || '—';
-    }
-
-    function limitToFiveWords(text){
-      if(!text) return '—';
-      const words = text.toString().trim().split(/\s+/).filter(Boolean).slice(0,5);
-      return words.join(' ');
-    }
-
+    // --- Description IA helpers -------------------------------------------
+    function setImageDescription(text){ document.getElementById('img-desc').textContent = text || '—'; }
+    function limitToFiveWords(text){ if(!text) return '—'; return text.toString().trim().split(/\s+/).filter(Boolean).slice(0,5).join(' '); }
     async function describeImage(savedPath){
       if(!savedPath){ setImageDescription('—'); return; }
       setImageDescription('Analyse en cours…');
       try{
-        const r = await fetch('/describe_image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: savedPath })
-        });
+        const r = await fetch('/describe_image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: savedPath }) });
         const j = await r.json();
         const raw = (j && (j.description || j.desc || j.text || '')).toString();
         setImageDescription(limitToFiveWords(raw));
-      }catch(e){
-        console.error(e);
-        setImageDescription('Erreur description');
-      }
+      }catch(e){ console.error(e); setImageDescription('Erreur description'); }
     }
 
-    // --- NOUVEAU : capture manuelle du panneau + OCR + description IA -----
+    // --- Capture + OCR -----------------------------------------------------
     async function captureSpeedSign(){
       const btn = document.getElementById('btn-capture');
       if(btn.hasAttribute('disabled')) return;
-      setLastCommand('capture');
-      flashOverlay('capture');
-      const original = btn.textContent;
-      btn.setAttribute('disabled', '');
-      btn.textContent = '⏳';
+      setLastCommand('capture'); flashOverlay('capture');
+      const original = btn.textContent; btn.setAttribute('disabled',''); btn.textContent='⏳';
       try {
         const r = await fetch('/capture_speed_sign', { method:'POST' });
         const j = await r.json();
-        if(!j.ok){
-          showToast(j.error ? `Erreur capture: ${j.error}` : 'Échec capture', false);
-          setImageDescription('—');
-          return;
-        }
-        // Rafraîchit vitesse détectée
+        if(!j.ok){ showToast(j.error ? `Erreur capture: ${j.error}` : 'Échec capture', false); setImageDescription('—'); return; }
         await refreshSpeedLimit();
-        if(j.detected != null){
-          const v = Number(j.detected);
-          showToast(`Limite détectée: ${v} km/h`);
-          highlightSpeedLimit();
-        }else{
-          showToast('Aucun nombre détecté', false);
-        }
-        // Demande la description IA (5 mots max côté UI)
+        if(j.detected != null){ const v = Number(j.detected); showToast(`Limite détectée: ${v} km/h`); highlightSpeedLimit(); }
+        else{ showToast('Aucun nombre détecté', false); }
         if(j.saved_path){ await describeImage(j.saved_path); }
-      }catch(e){
-        console.error(e);
-        showToast('Erreur réseau', false);
-        setImageDescription('Erreur description');
-      }finally{
-        btn.removeAttribute('disabled');
-        btn.textContent = original;
-      }
+      }catch(e){ console.error(e); showToast('Erreur réseau', false); setImageDescription('Erreur description'); }
+      finally{ btn.removeAttribute('disabled'); btn.textContent = original; }
     }
 
-    function highlightSpeedLimit(){
-      const el = document.getElementById('speed-limit');
-      el.classList.add('flash');
-      setTimeout(()=> el.classList.remove('flash'), 900);
-    }
+    function highlightSpeedLimit(){ const el = document.getElementById('speed-limit'); el.classList.add('flash'); setTimeout(()=> el.classList.remove('flash'), 900); }
+
+    // init
+    setController('vehicle');
   </script>
 </body>
 </html>
