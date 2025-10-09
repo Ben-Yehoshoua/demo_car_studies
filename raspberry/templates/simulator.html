@@ -496,7 +496,43 @@
         height: 56px;
       }
     }
+
+  /* User chip (header right) */
+  .user-chip {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    background: var(--bg-light);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: .35rem .5rem .35rem .35rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+  }
+
+  .user-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: #fff; font-weight: 700; font-size: .9rem;
+  }
+
+  .user-name {
+    font-weight: 600; color: var(--text-primary); font-size: .9rem;
+  }
+
+  .logout-form { margin: 0; }
+  .logout-btn {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-size: .8rem; padding: .25rem .55rem;
+    border-radius: 8px; cursor: pointer; color: var(--text-secondary);
+    transition: background .15s, transform .1s;
+  }
+  .logout-btn:hover { background: var(--surface-light); }
+  .logout-btn:active { transform: translateY(1px); }
   </style>
+
 </head>
 <body>
   <div class="header">
@@ -506,10 +542,22 @@
         <h1>Drive Simulator Pro</h1>
       </div>
     </div>
-    <nav class="nav-tabs">
-      <a class="nav-tab active" href="/">Simulateur</a>
-      <a class="nav-tab" href="/chatbot">Chatbot</a>
-    </nav>
+    <div style="display:flex; align-items:center; gap:1rem;">
+      <nav class="nav-tabs">
+        <a class="nav-tab active" href="/">Simulateur</a>
+        <a class="nav-tab" href="/chatbot">Chatbot</a>
+      </nav>
+
+      <!-- Chip utilisateur -->
+      <div class="user-chip" title="Utilisateur connecté">
+        <span class="user-avatar">{{ (user or '?')[:1]|upper }}</span>
+        <span class="user-name">{{ user or 'Invité' }}</span>
+        <form class="logout-form" method="post" action="/logout">
+          <button class="logout-btn" type="submit">Déconnexion</button>
+        </form>
+      </div>
+    </div>
+
   </div>
 
   <main class="layout">
