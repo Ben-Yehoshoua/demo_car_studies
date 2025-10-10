@@ -12,7 +12,7 @@ import numpy as np
 import base64
 import re
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional, Union
+from typing import Optional, Union, Dict
 from datetime import datetime
 
 # ========= Configuration générale ============================================
@@ -150,7 +150,7 @@ def is_admin() -> bool:
 
 # -------- Permissions (in-memory) --------------------------------------------
 __perm_lock = RLock()
-__permissions: dict[str, bool] = {}  # pseudo -> allowed
+__permissions: Dict[str, bool] = {}  # pseudo -> allowed
 
 def get_allowed(pseudo: str) -> bool:
     with __perm_lock:
