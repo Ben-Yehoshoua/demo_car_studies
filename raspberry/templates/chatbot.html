@@ -65,6 +65,18 @@
     .header{ display:grid; grid-template-columns:auto 1fr auto; align-items:center; }
     .center-brand{ justify-self:center; }
     .brand-logo{ height:32px; width:auto; }
+    .page-badge{
+      font-size:.72rem;
+      padding:.1rem .4rem;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:var(--surface);
+      color:var(--text-muted);
+    }
+    .page-badge.sim{ background:rgba(59,130,246,.08); color:#1e40af; border-color:rgba(59,130,246,.25); }
+    .page-badge.chat{ background:rgba(16,185,129,.10); color:#065f46; border-color:rgba(16,185,129,.25); }
+    .page-badge.unknown{ background:var(--surface); color:var(--text-muted); }
+
 
   </style>
   <script>window.IS_ADMIN = {{ 'true' if is_admin else 'false' }};</script>
@@ -103,6 +115,14 @@
     <div class="chat-header"><h2>💬 Assistant de Conduite IA</h2></div>
 
     {% if is_admin %}
+    <div id="adminViewerBar" style="display:none;padding:.6rem 1rem;border-bottom:1px solid var(--border);background:var(--surface);font-size:.9rem;">
+      <strong>Vue admin</strong> — conversation de <span id="adminViewerUser" style="color:var(--primary)"></span>
+      <button id="adminViewerClose" style="margin-left:1rem;border:1px solid var(--border);background:#fff;padding:.25rem .6rem;border-radius:8px;cursor:pointer;font-size:.85rem;">Quitter la vue</button>
+      <span id="adminViewerLive" style="margin-left:.6rem;color:var(--text-muted)">(MAJ auto)</span>
+    </div>
+    {% endif %}
+
+    {% if is_admin %}
     <div class="admin-card">
       <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;color:var(--text-muted);letter-spacing:.05em;margin-bottom:.5rem;">
         Utilisateurs connectés (autres)
@@ -133,6 +153,25 @@
     const sendBtn=document.getElementById('sendBtn');
     const permHintChat=document.getElementById('permHintChat');
     let isFirstMessage=true;
+
+    // --- Heartbeat présence: indique que je suis sur le chatbot
+    async function heartbeat(page){
+      try{ await fetch('/presence', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ page })
+      }); } catch(_){}
+    }
+    function startHeartbeat(page){
+      heartbeat(page);
+      window.__heartbeatTimer && clearInterval(window.__heartbeatTimer);
+      window.__heartbeatTimer = setInterval(()=>heartbeat(page), 5000);
+      document.addEventListener('visibilitychange', ()=>{
+        if(document.visibilityState === 'visible'){ heartbeat(page); }
+      });
+    }
+    // Démarre ici pour le chatbot
+    startHeartbeat('chatbot');
 
     inputMessage.addEventListener('keypress',e=>{ if(e.key==='Enter') sendMessage(); });
     sendBtn.addEventListener('click',sendMessage);
@@ -196,39 +235,169 @@
     pollMyPermission(); setInterval(pollMyPermission, 3000);
 
     // ------- Admin: cadenas à côté de chaque pseudo -------------------------
-    async function refreshOnlineUsers(){
-      if (!window.IS_ADMIN) return;
-      try{
-        const r = await fetch('/users/online'); if(!r.ok) return;
-        const j = await r.json(); const ul = document.getElementById('online-users'); if(!ul) return;
+  async function refreshOnlineUsers(){
+    if (!window.IS_ADMIN) return;
+
+    let j;
+    try {
+      const r = await fetch('/users/online');
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      j = await r.json();
+    } catch (e) {
+      const ul = document.getElementById('online-users');
+      if (ul) {
         ul.innerHTML = '';
-        const users = (j && Array.isArray(j.users)) ? j.users : [];
-        if (users.length === 0){
-          const li=document.createElement('li'); li.style.color='var(--text-muted)'; li.textContent='Personne d’autre en ligne'; ul.appendChild(li);
-          return;
-        }
-        for(const pseudo of users){
-          const li=document.createElement('li'); li.className='user-pill';
-          const name=document.createElement('span'); name.textContent=pseudo;
-          const btn=document.createElement('button'); btn.className='lock-btn'; btn.setAttribute('aria-label','Basculer droit'); btn.textContent='🔓'; btn.classList.add('lock-off');
-          // État initial
-          try{
-            const s = await fetch('/permissions/me?user='+encodeURIComponent(pseudo));
-            if(s.ok){ const sj = await s.json(); const a = !!sj.allowed; btn.textContent = a?'🔓':'🔒'; btn.classList.toggle('lock-off', a); btn.classList.toggle('lock-on', !a); }
-          }catch(_){}
-          btn.addEventListener('click', async ()=>{
-            btn.disabled = true;
-            try{
-              const t = await fetch('/admin/permissions/toggle', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ user: pseudo }) });
-              const tj = await t.json(); const a = !!tj.allowed;
-              btn.textContent = a?'🔓':'🔒'; btn.classList.toggle('lock-off', a); btn.classList.toggle('lock-on', !a);
-            }catch(_){ } finally { btn.disabled = false; }
-          });
-          li.appendChild(name); li.appendChild(btn); ul.appendChild(li);
+        const li = document.createElement('li');
+        li.style.color = 'var(--text-muted)';
+        li.textContent = "Impossible de charger les utilisateurs…";
+        ul.appendChild(li);
+      }
+      return;
+    }
+
+    const ul = document.getElementById('online-users'); if(!ul) return;
+    ul.innerHTML = '';
+
+    const detailed = Array.isArray(j.users_detailed) ? j.users_detailed : [];
+    const fallbackNames = Array.isArray(j.users) ? j.users : [];
+    const list = detailed.length ? detailed : fallbackNames.map(n=>({name:n, page:'unknown'}));
+
+    if (list.length === 0){
+      const li=document.createElement('li');
+      li.style.color='var(--text-muted)';
+      li.textContent='Personne d’autre en ligne';
+      ul.appendChild(li);
+      return;
+    }
+
+    for(const item of list){
+      const pseudo = item.name || item;
+      const page = item.page || 'unknown';
+
+      const li=document.createElement('li'); li.className='user-pill';
+      const name=document.createElement('span'); name.textContent=pseudo;
+
+      const badge=document.createElement('span');
+      badge.className='page-badge ' + (page==='simulator'?'sim':(page==='chatbot'?'chat':'unknown'));
+      badge.textContent = page==='simulator' ? 'Simulateur' : (page==='chatbot' ? 'Chatbot' : 'Inconnu');
+
+      const btn=document.createElement('button'); btn.className='lock-btn';
+      btn.setAttribute('aria-label','Basculer droit'); btn.textContent='🔓'; btn.classList.add('lock-off');
+      try{
+        const s = await fetch('/permissions/me?user='+encodeURIComponent(pseudo));
+        if(s.ok){
+          const sj = await s.json();
+          const a = !!sj.allowed;
+          btn.textContent = a?'🔓':'🔒';
+          btn.classList.toggle('lock-off', a);
+          btn.classList.toggle('lock-on', !a);
         }
       }catch(_){}
+
+      btn.addEventListener('click', async ()=>{
+        btn.disabled = true;
+        try{
+          const t = await fetch('/admin/permissions/toggle', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ user: pseudo })
+          });
+          const tj = await t.json();
+          const a = !!tj.allowed;
+          btn.textContent = a?'🔓':'🔒';
+          btn.classList.toggle('lock-off', a);
+          btn.classList.toggle('lock-on', !a);
+        }catch(_){ }
+        finally { btn.disabled = false; }
+      });
+
+      // bouton 📜 pour ouvrir la vue des logs
+      const logBtn = document.createElement('button');
+      logBtn.className = 'lock-btn'; logBtn.setAttribute('title','Voir la conversation'); logBtn.textContent = '📜';
+      logBtn.addEventListener('click', ()=> openAdminLogView(pseudo));
+
+      li.appendChild(name);
+      li.appendChild(badge);
+      li.appendChild(btn);
+      li.appendChild(logBtn);
+      ul.appendChild(li);
     }
-    if (window.IS_ADMIN){ refreshOnlineUsers(); setInterval(refreshOnlineUsers, 3000); }
+  }
+  if (window.IS_ADMIN){ refreshOnlineUsers(); setInterval(refreshOnlineUsers, 3000); }
+</script>
+
+
+    // ===== Admin: affichage des journaux de conversation (lecture seule) =====
+    let __adminViewingUser = null;
+    let __adminLogsTimer = null;
+
+    function clearChat(){
+      chatbox.innerHTML = '<div class="empty-state">—</div>';
+      isFirstMessage = true;
+    }
+
+    function renderAdminLogs(user, logs){
+      // Nettoie et affiche les messages enregistrés
+      chatbox.innerHTML = '';
+      isFirstMessage = false;
+      if(!Array.isArray(logs) || logs.length === 0){
+        const d=document.createElement('div');
+        d.className='empty-state';
+        d.textContent="Aucune conversation enregistrée.";
+        chatbox.appendChild(d);
+        return;
+      }
+      for(const m of logs){
+        const who = (m.role==='user') ? 'user' : 'bot';
+        const div = document.createElement('div');
+        div.className = `message ${who}`;
+        div.textContent = m.text || '';
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = `${m.ts || ''} · ${m.role==='user' ? user : 'assistant'}`;
+        div.appendChild(meta);
+        chatbox.appendChild(div);
+      }
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
+
+    async function fetchAdminLogsOnce(user){
+      try{
+        const r = await fetch('/admin/chatlogs?user=' + encodeURIComponent(user));
+        if(!r.ok) return;
+        const j = await r.json();
+        if(!j.ok) return;
+        renderAdminLogs(user, j.logs || []);
+      }catch(_){}
+    }
+
+    function startAdminLogsLive(user){
+      stopAdminLogsLive();
+      __adminViewingUser = user;
+      document.getElementById('adminViewerUser').textContent = user;
+      document.getElementById('adminViewerBar').style.display = 'block';
+      // Désactive l’envoi depuis l’admin pendant la vue (lecture seule)
+      applyChatPermission(false);
+      fetchAdminLogsOnce(user);
+      __adminLogsTimer = setInterval(()=>fetchAdminLogsOnce(user), 3000);
+    }
+    function stopAdminLogsLive(){
+      if(__adminLogsTimer){ clearInterval(__adminLogsTimer); __adminLogsTimer=null; }
+      __adminViewingUser = null;
+      document.getElementById('adminViewerBar').style.display = 'none';
+      // Rétablit le droit d’écrire pour l’admin (toujours autorisé côté backend)
+      applyChatPermission(true);
+      clearChat();
+    }
+
+    function openAdminLogView(user){
+      if(!window.IS_ADMIN) return;
+      startAdminLogsLive(user);
+    }
+
+    const closeBtn = document.getElementById('adminViewerClose');
+    if(closeBtn){ closeBtn.addEventListener('click', stopAdminLogsLive); }
+
   </script>
 </body>
 </html>

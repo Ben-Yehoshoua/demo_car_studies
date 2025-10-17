@@ -420,37 +420,115 @@
     pollMyPermission(); setInterval(pollMyPermission, 3000);
 
     // ---------- Admin: users + lock buttons
-    async function refreshOnlineUsers(){
-      if (!window.IS_ADMIN) return;
-      try{
-        const r = await fetch('/users/online'); if(!r.ok) return;
-        const j = await r.json(); const ul = document.getElementById('online-users'); if(!ul) return;
-        ul.innerHTML = '';
-        const users = (j && Array.isArray(j.users)) ? j.users : [];
-        if(users.length===0){ const li=document.createElement('li'); li.style.color='var(--text-muted)'; li.textContent='Personne d’autre en ligne'; ul.appendChild(li); return; }
-        for(const pseudo of users){
-          const li = document.createElement('li'); li.className='user-pill';
-          const name = document.createElement('span'); name.textContent = pseudo;
-          const btn  = document.createElement('button'); btn.className='lock-btn'; btn.setAttribute('aria-label','Basculer droit');
-          btn.textContent = '🔓'; btn.classList.add('lock-off');
-          try{ const s = await fetch('/permissions/me?user='+encodeURIComponent(pseudo));
-            if(s.ok){ const sj = await s.json(); const a = !!sj.allowed; btn.textContent = a?'🔓':'🔒'; btn.classList.toggle('lock-off', a); btn.classList.toggle('lock-on', !a); }
-          }catch(_){}
-          btn.addEventListener('click', async ()=>{
-            btn.disabled = true;
-            try{ const t = await fetch('/admin/permissions/toggle', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ user: pseudo }) });
-              const tj = await t.json(); const a = !!tj.allowed;
-              btn.textContent = a?'🔓':'🔒'; btn.classList.toggle('lock-off', a); btn.classList.toggle('lock-on', !a);
-            }catch(_){ } finally { btn.disabled = false; }
-          });
-          li.appendChild(name); li.appendChild(btn); ul.appendChild(li);
-        }
-      }catch(_){}
+async function refreshOnlineUsers(){
+  if (!window.IS_ADMIN) return;
+
+  let j;
+  try {
+    const r = await fetch('/users/online');
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    j = await r.json();
+  } catch (e) {
+    // Affiche un message discret plutôt que de tout casser
+    const ul = document.getElementById('online-users');
+    if (ul) {
+      ul.innerHTML = '';
+      const li = document.createElement('li');
+      li.style.color = 'var(--text-muted)';
+      li.textContent = 'Impossible de charger les utilisateurs…';
+      ul.appendChild(li);
     }
-    if (window.IS_ADMIN){ refreshOnlineUsers(); setInterval(refreshOnlineUsers, 3000); }
+    return;
+  }
+
+  const ul = document.getElementById('online-users'); if(!ul) return;
+  ul.innerHTML = '';
+
+  const detailed = Array.isArray(j.users_detailed) ? j.users_detailed : [];
+  const fallbackNames = Array.isArray(j.users) ? j.users : [];
+  const list = detailed.length ? detailed : fallbackNames.map(n=>({name:n, page:'unknown'}));
+
+  if(list.length===0){
+    const li=document.createElement('li');
+    li.style.color='var(--text-muted)';
+    li.textContent='Personne d’autre en ligne';
+    ul.appendChild(li);
+    return;
+  }
+
+  for(const item of list){
+    const pseudo = item.name || item;
+    const page = (item.page || 'unknown');
+
+    const li = document.createElement('li'); li.className='user-pill';
+    const name = document.createElement('span'); name.textContent = pseudo;
+
+    const badge = document.createElement('span');
+    badge.className = 'page-badge ' + (page==='simulator'?'sim':(page==='chatbot'?'chat':'unknown'));
+    badge.textContent = page==='simulator' ? '| Simulateur' : (page==='chatbot' ? '| Chatbot' : '| Inconnu');
+
+    const btn  = document.createElement('button'); btn.className='lock-btn'; btn.setAttribute('aria-label','Basculer droit');
+    btn.textContent = '🔓'; btn.classList.add('lock-off');
+
+    try{
+      const s = await fetch('/permissions/me?user='+encodeURIComponent(pseudo));
+      if(s.ok){
+        const sj = await s.json();
+        const a = !!sj.allowed;
+        btn.textContent = a?'🔓':'🔒';
+        btn.classList.toggle('lock-off', a);
+        btn.classList.toggle('lock-on', !a);
+      }
+    }catch(_){}
+
+    btn.addEventListener('click', async ()=>{
+      btn.disabled = true;
+      try{
+        const t = await fetch('/admin/permissions/toggle', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ user: pseudo })
+        });
+        const tj = await t.json();
+        const a = !!tj.allowed;
+        btn.textContent = a?'🔓':'🔒';
+        btn.classList.toggle('lock-off', a);
+        btn.classList.toggle('lock-on', !a);
+      }catch(_){ }
+      finally { btn.disabled = false; }
+    });
+
+    li.appendChild(name);
+    li.appendChild(badge);
+    li.appendChild(btn);
+    ul.appendChild(li);
+  }
+}
+if (window.IS_ADMIN){ refreshOnlineUsers(); setInterval(refreshOnlineUsers, 3000); }
+
 
     // Init
     setController('vehicle');
+
+    // --- Heartbeat présence: indique que je suis sur le simulateur
+    async function heartbeat(page){
+      try{ await fetch('/presence', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ page })
+      }); } catch(_){}
+    }
+    function startHeartbeat(page){
+      heartbeat(page);
+      window.__heartbeatTimer && clearInterval(window.__heartbeatTimer);
+      window.__heartbeatTimer = setInterval(()=>heartbeat(page), 5000);
+      document.addEventListener('visibilitychange', ()=>{
+        if(document.visibilityState === 'visible'){ heartbeat(page); }
+      });
+    }
+    startHeartbeat('simulator');
+
+
   </script>
 </body>
 </html>

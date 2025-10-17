@@ -14,6 +14,9 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional, Union, Dict
 from datetime import datetime
+from pathlib import Path
+from collections import deque
+
 
 # ========= Configuration générale ============================================
 DEBUG = False
@@ -135,6 +138,67 @@ os.makedirs(SNAP_DIR, exist_ok=True)
 _OCR_EXEC = ThreadPoolExecutor(max_workers=1)
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# ========= Chat logs (persistants) ===========================================
+CHATLOG_DIR = Path(os.getcwd()) / "chatlogs"
+CHATLOG_DIR.mkdir(parents=True, exist_ok=True)
+_chatlog_lock = RLock()
+
+def _chatlog_path(user: str) -> Path:
+    safe = re.sub(r'[^a-zA-Z0-9._-]+', '_', (user or 'anon'))
+    return CHATLOG_DIR / f"{safe}.jsonl"
+
+def append_chatlog(user: str, role: str, text: str):
+    """Écrit une ligne JSON par message (user/assistant)."""
+    if not user or not text:
+        return
+    entry = {
+        "ts": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "user": user,
+        "role": role,      # "user" | "assistant"
+        "text": text
+    }
+    line = json.dumps(entry, ensure_ascii=False)
+    with _chatlog_lock:
+        _chatlog_path(user).parent.mkdir(parents=True, exist_ok=True)
+        with _chatlog_path(user).open("a", encoding="utf-8") as f:
+            f.write(line + "\n")
+
+def read_chatlog(user: str, limit: int = 500):
+    """Retourne au plus 'limit' derniers messages d’un utilisateur (ordre chronologique)."""
+    p = _chatlog_path(user)
+    if not p.exists():
+        return []
+    dq = deque(maxlen=limit)
+    with _chatlog_lock:
+        with p.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    dq.append(json.loads(line))
+                except Exception:
+                    continue
+    return list(dq)
+
+def list_users_with_logs():
+    with _chatlog_lock:
+        return sorted([fp.stem for fp in CHATLOG_DIR.glob("*.jsonl")])
+
+# -------- Présence (page courante) -------------------------------------------
+_presence_lock = RLock()
+_presence = {}  # pseudo -> {"page": "simulator"|"chatbot"|"unknown", "ts": time.time()}
+
+def set_presence(user: str, page: str):
+    if not user: return
+    page = page if page in ("simulator", "chatbot") else "unknown"
+    with _presence_lock:
+        _presence[user] = {"page": page, "ts": time.time()}
+
+def get_presence(user: str):
+    with _presence_lock:
+        return _presence.get(user, {"page":"unknown","ts":0})
 
 # --- Auth / rôles ------------------------------------------------------------
 SHARED_PASSWORD = os.getenv("APP_SHARED_PASSWORD", "change-me")
@@ -392,14 +456,39 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
+@app.route('/presence', methods=['POST'])
+def presence():
+    if not is_logged_in():
+        return jsonify({"error": "unauthorized"}), 401
+    data = request.get_json(silent=True) or {}
+    page = (data.get("page") or "").strip().lower()
+    set_presence(session.get("user"), page)
+    return jsonify({"ok": True})
+
 @app.route('/users/online', methods=['GET'])
 def users_online():
     if not is_logged_in() or not is_admin():
         return jsonify({"error": "forbidden"}), 403
+
     me = session.get("user")
     with _online_lock:
         others = sorted(u for u in _online_users if u != me)
-    return jsonify({"users": others})
+
+    # Retourne un format rétro-compatible:
+    # - "users": [ ... ] (noms simples)
+    # - "users_detailed": [ {"name":..., "page":...}, ... ]
+    detailed = []
+    now = time.time()
+    for u in others:
+        pres = get_presence(u)
+        # si battement trop vieux (> 20s), on affiche "inconnu"
+        page = pres.get("page", "unknown")
+        if now - float(pres.get("ts", 0)) > 20:
+            page = "unknown"
+        detailed.append({"name": u, "page": page})
+
+    return jsonify({"users": others, "users_detailed": detailed})
+
 
 # --------- Permissions API ---------------------------------------------------
 @app.route("/permissions/me", methods=["GET"])
@@ -431,6 +520,29 @@ def admin_permissions_toggle():
         return jsonify({"error": "impossible de modifier l'admin"}), 400
     new_state = toggle_allowed(user)
     return jsonify({"ok": True, "user": user, "allowed": new_state})
+
+# --------- Chat logs (Admin only) -------------------------------------------
+@app.route("/admin/chatlogs", methods=["GET"])
+def admin_chatlogs():
+    if not is_logged_in() or not is_admin():
+        return jsonify({"error": "forbidden"}), 403
+    user_q = (request.args.get("user") or "").strip()
+    if not user_q:
+        return jsonify({"error": "param 'user' manquant"}), 400
+    try:
+        limit = int(request.args.get("limit", 500))
+    except Exception:
+        limit = 500
+    logs = read_chatlog(user_q, limit=limit)
+    return jsonify({"ok": True, "user": user_q, "logs": logs})
+
+@app.route("/admin/chatlogs/users", methods=["GET"])
+def admin_chatlogs_users():
+    if not is_logged_in() or not is_admin():
+        return jsonify({"error": "forbidden"}), 403
+    users = list_users_with_logs()
+    return jsonify({"ok": True, "users": users})
+
 
 # --------- Speed limit API ---------------------------------------------------
 @app.route('/speed_limit', methods=['GET', 'POST'])
@@ -689,6 +801,12 @@ def chat():
     if not user_message:
         return jsonify({"error": "message manquant"}), 400
 
+    # --- Journalisation : message utilisateur --------------------------------
+    try:
+        append_chatlog(user or "anon", "user", user_message)
+    except Exception as _e:
+        if DEBUG: print("[CHATLOG] Échec append (user):", _e)
+
     completion = client.chat.completions.create(
         model="gpt-4o",
         temperature=0.2,
@@ -701,6 +819,16 @@ def chat():
 
     msg = completion.choices[0].message
     reply_text = (msg.content or "").strip()
+
+    # --- Journalisation de la conversation (toujours, y compris pour admin) -----
+    try:
+        if user_message:
+            append_chatlog(user or "anon", "user", user_message)
+        if reply_text:
+            append_chatlog(user or "anon", "assistant", reply_text)
+    except Exception as _e:
+        if DEBUG: print("[CHATLOG] Échec append:", _e)
+
 
     tool_calls = getattr(msg, "tool_calls", None) or []
     commandes_envoyees = []
@@ -720,6 +848,13 @@ def chat():
 
     if not reply_text and commandes_envoyees:
         reply_text = f"Commande envoyée : {', '.join(commandes_envoyees)}."
+
+    # --- Journalisation : réponse finale (inclut "Commande envoyée : ...") ---
+    try:
+        if reply_text:
+            append_chatlog(user or "anon", "assistant", reply_text)
+    except Exception as _e:
+        if DEBUG: print("[CHATLOG] Échec append (assistant):", _e)
 
     return jsonify({
         "ok": True,
