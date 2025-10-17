@@ -31,18 +31,19 @@
     .header h1{font-size:1.15rem;font-weight:600;color:var(--text-primary);letter-spacing:-.02em}
     .center-brand{justify-self:center}
     .brand-logo{height:32px;width:auto}
-    .header-right{display:flex;align-items:center;gap:1rem}
-    .nav-tabs{display:flex;gap:.5rem}
-    .nav-tab{text-decoration:none;color:var(--text-secondary);padding:.5rem 1rem;border-radius:8px;transition:.2s;font-weight:500;font-size:.875rem}
+    .header-right{display:flex;align-items:center;gap:.75rem;min-width:0}
+
+    /* Tabs (web & mobile) */
+    .nav-tabs,.nav-tabs-mobile{display:flex;gap:.5rem}
+    .nav-tab{text-decoration:none;color:var(--text-secondary);padding:.5rem 1rem;border-radius:8px;transition:.2s;font-weight:500;font-size:.875rem;border:1px solid transparent}
     .nav-tab:hover{background:var(--surface);color:var(--text-primary)}
-    .nav-tab.active{background:var(--primary);color:#fff}
+    .nav-tab.active{background:var(--primary);color:#fff;border-color:transparent}
 
     /* Main 3-col layout */
     main.layout{display:grid;grid-template-columns:var(--left-w) 1fr var(--right-w);gap:var(--gap);padding:var(--gap);height:calc(100dvh - var(--header-h));}
     .panel{background:var(--bg-light);border-radius:16px;border:1px solid var(--border);overflow:auto;min-height:0}
     #controlsPanel { overflow: hidden; }
     .panel.screen{ overflow: hidden; }
-
 
     /* Left info */
     .left{display:flex;flex-direction:column;gap:1rem;padding:1rem}
@@ -83,54 +84,54 @@
     .controller-switch.camera .controller-indicator{left:calc(50% + 0px)}
     .controller-hint{font-size:.78rem;color:var(--text-muted);text-align:center;line-height:1.4}
 
-  .joystick-wrap{
-    width: clamp(180px, 32vmin, 320px);
-    aspect-ratio: 1;
-    margin: 0 auto;
-    position: relative;
-  }
+    .joystick-wrap{
+      width: clamp(180px, 32vmin, 320px);
+      aspect-ratio: 1;
+      margin: 0 auto;
+      position: relative;
+    }
 
-  .joystick{
-    position: relative;
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1;
-    display: grid;
-    grid-template-columns: repeat(3,1fr);
-    grid-template-rows: repeat(3,1fr);
-    gap: clamp(8px, 1.5vmin, 14px);
-    padding: clamp(10px, 2vmin, 16px);
-    background: var(--surface);
-    border-radius: 50%;
-    box-shadow: inset 0 4px 12px rgba(0,0,0,.22);
-    border: 1px solid var(--border);
-  }
+    .joystick{
+      position: relative;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1;
+      display: grid;
+      grid-template-columns: repeat(3,1fr);
+      grid-template-rows: repeat(3,1fr);
+      gap: clamp(8px, 1.5vmin, 14px);
+      padding: clamp(10px, 2vmin, 16px);
+      background: var(--surface);
+      border-radius: 50%;
+      box-shadow: inset 0 4px 12px rgba(0,0,0,.22);
+      border: 1px solid var(--border);
+    }
 
-  /* Boutons carrés, qui ne s’étirent pas */
-  .dpad-btn{
-    width: 100%;
-    height: 100%;
-    aspect-ratio: 1;
-    border-radius: 12px;
-    border: none;
-    cursor: pointer;
-    font-size: 1.5rem;
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-    display: grid;
-    place-items: center;
-    box-shadow: 0 4px 12px rgba(59,130,246,.35);
-    transition: transform .1s ease, border-color .1s ease, box-shadow .1s ease;
-    border: 1px solid rgba(255,255,255,.12);
-    /* bornes de taille pour rester confortables */
-    max-width: clamp(44px, 7.5vmin, 72px);
-    max-height: clamp(44px, 7.5vmin, 72px);
-  }
+    /* Boutons carrés, qui ne s’étirent pas */
+    .dpad-btn{
+      width: 100%;
+      height: 100%;
+      aspect-ratio: 1;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      font-size: 1.5rem;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      display: grid;
+      place-items: center;
+      box-shadow: 0 4px 12px rgba(59,130,246,.35);
+      transition: transform .1s ease, border-color .1s ease, box-shadow .1s ease;
+      border: 1px solid rgba(255,255,255,.12);
+      /* bornes de taille pour rester confortables */
+      max-width: clamp(44px, 7.5vmin, 72px);
+      max-height: clamp(44px, 7.5vmin, 72px);
+    }
 
-  /* Placement sur la grille 3×3 */
-  .dpad-up   { grid-column: 2; grid-row: 1; align-self: center; justify-self: center; }
-  .dpad-left { grid-column: 1; grid-row: 2; align-self: center; justify-self: center; }
-  .dpad-right{ grid-column: 3; grid-row: 2; align-self: center; justify-self: center; }
-  .dpad-down { grid-column: 2; grid-row: 3; align-self: center; justify-self: center; }
+    /* Placement sur la grille 3×3 */
+    .dpad-up   { grid-column: 2; grid-row: 1; align-self: center; justify-self: center; }
+    .dpad-left { grid-column: 1; grid-row: 2; align-self: center; justify-self: center; }
+    .dpad-right{ grid-column: 3; grid-row: 2; align-self: center; justify-self: center; }
+    .dpad-down { grid-column: 2; grid-row: 3; align-self: center; justify-self: center; }
 
     .hint{font-size:.78rem;color:var(--text-muted);text-align:center;margin-top:.35rem}
     .hint strong{color:var(--accent);font-weight:700}
@@ -164,14 +165,20 @@
       .left{order:3;flex-direction:row;overflow-x:auto;padding:.75rem}
       .left .panel-header{display:none}
       .left .info{min-width:160px;flex-shrink:0}
-      .joystick-wrap{ width: clamp(180px, 40vmin, 260px); } /* plus de height fixe */
+      .joystick-wrap{ width: clamp(180px, 40vmin, 260px); }
       .dpad-btn{ max-width: clamp(44px, 8vmin, 64px); max-height: clamp(44px, 8vmin, 64px); }
     }
-    @media (max-width: 640px){
-      .nav-tabs{display:none}
-      .header{grid-template-columns:1fr auto;}
-      .center-brand{justify-self:end}
-      .brand-logo{height:28px}
+    @media (max-width: 768px){
+      .brand-logo{height:24px}
+      .header{
+        grid-template-columns:1fr auto; grid-template-areas:
+          "left right"
+          "brand brand";
+        row-gap:.5rem;
+      }
+      .header-left{grid-area:left}
+      .center-brand{grid-area:brand; justify-self:center}
+      .header-right{grid-area:right}
       .icon-btn{width:56px;height:56px;font-size:1.45rem}
       .screen-badge{font-size:.74rem}
       main.layout{padding:.75rem}
@@ -195,10 +202,12 @@
     </div>
     <div class="center-brand"><img src="/static/logo.png" alt="Logo Drive Simulator Pro" class="brand-logo"></div>
     <div class="header-right">
-      <nav class="nav-tabs">
+      <!-- Onglets version desktop -->
+      <nav class="nav-tabs" aria-label="Navigation principale (desktop)">
         <a class="nav-tab active" href="/">Simulateur</a>
         <a class="nav-tab" href="/chatbot">Chatbot</a>
       </nav>
+
       <div class="user-chip" title="Utilisateur connecté">
         <span class="user-avatar">{{ (user or '?')[:1]|upper }}</span>
         <span class="user-name">{{ user or 'Invité' }}</span>
@@ -275,7 +284,7 @@
     // ---------- Layout sizing: make 100dvh reliable and account for header height
     function setHeaderHeightVar(){
       const h=document.getElementById('appHeader');
-      if(!h) return; 
+      if(!h) return;
       const hh=h.offsetHeight;
       document.documentElement.style.setProperty('--header-h', hh + 'px');
     }
@@ -420,92 +429,90 @@
     pollMyPermission(); setInterval(pollMyPermission, 3000);
 
     // ---------- Admin: users + lock buttons
-async function refreshOnlineUsers(){
-  if (!window.IS_ADMIN) return;
+    async function refreshOnlineUsers(){
+      if (!window.IS_ADMIN) return;
 
-  let j;
-  try {
-    const r = await fetch('/users/online');
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    j = await r.json();
-  } catch (e) {
-    // Affiche un message discret plutôt que de tout casser
-    const ul = document.getElementById('online-users');
-    if (ul) {
-      ul.innerHTML = '';
-      const li = document.createElement('li');
-      li.style.color = 'var(--text-muted)';
-      li.textContent = 'Impossible de charger les utilisateurs…';
-      ul.appendChild(li);
-    }
-    return;
-  }
-
-  const ul = document.getElementById('online-users'); if(!ul) return;
-  ul.innerHTML = '';
-
-  const detailed = Array.isArray(j.users_detailed) ? j.users_detailed : [];
-  const fallbackNames = Array.isArray(j.users) ? j.users : [];
-  const list = detailed.length ? detailed : fallbackNames.map(n=>({name:n, page:'unknown'}));
-
-  if(list.length===0){
-    const li=document.createElement('li');
-    li.style.color='var(--text-muted)';
-    li.textContent='Personne d’autre en ligne';
-    ul.appendChild(li);
-    return;
-  }
-
-  for(const item of list){
-    const pseudo = item.name || item;
-    const page = (item.page || 'unknown');
-
-    const li = document.createElement('li'); li.className='user-pill';
-    const name = document.createElement('span'); name.textContent = pseudo;
-
-    const badge = document.createElement('span');
-    badge.className = 'page-badge ' + (page==='simulator'?'sim':(page==='chatbot'?'chat':'unknown'));
-    badge.textContent = page==='simulator' ? '| Simulateur' : (page==='chatbot' ? '| Chatbot' : '| Inconnu');
-
-    const btn  = document.createElement('button'); btn.className='lock-btn'; btn.setAttribute('aria-label','Basculer droit');
-    btn.textContent = '🔓'; btn.classList.add('lock-off');
-
-    try{
-      const s = await fetch('/permissions/me?user='+encodeURIComponent(pseudo));
-      if(s.ok){
-        const sj = await s.json();
-        const a = !!sj.allowed;
-        btn.textContent = a?'🔓':'🔒';
-        btn.classList.toggle('lock-off', a);
-        btn.classList.toggle('lock-on', !a);
+      let j;
+      try {
+        const r = await fetch('/users/online');
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        j = await r.json();
+      } catch (e) {
+        const ul = document.getElementById('online-users');
+        if (ul) {
+          ul.innerHTML = '';
+          const li = document.createElement('li');
+          li.style.color = 'var(--text-muted)';
+          li.textContent = 'Impossible de charger les utilisateurs…';
+          ul.appendChild(li);
+        }
+        return;
       }
-    }catch(_){}
 
-    btn.addEventListener('click', async ()=>{
-      btn.disabled = true;
-      try{
-        const t = await fetch('/admin/permissions/toggle', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ user: pseudo })
+      const ul = document.getElementById('online-users'); if(!ul) return;
+      ul.innerHTML = '';
+
+      const detailed = Array.isArray(j.users_detailed) ? j.users_detailed : [];
+      const fallbackNames = Array.isArray(j.users) ? j.users : [];
+      const list = detailed.length ? detailed : fallbackNames.map(n=>({name:n, page:'unknown'}));
+
+      if(list.length===0){
+        const li=document.createElement('li');
+        li.style.color='var(--text-muted)';
+        li.textContent='Personne d’autre en ligne';
+        ul.appendChild(li);
+        return;
+      }
+
+      for(const item of list){
+        const pseudo = item.name || item;
+        const page = (item.page || 'unknown');
+
+        const li = document.createElement('li'); li.className='user-pill';
+        const name = document.createElement('span'); name.textContent = pseudo;
+
+        const badge = document.createElement('span');
+        badge.className = 'page-badge ' + (page==='simulator'?'sim':(page==='chatbot'?'chat':'unknown'));
+        badge.textContent = page==='simulator' ? '| Simulateur' : (page==='chatbot' ? '| Chatbot' : '| Inconnu');
+
+        const btn  = document.createElement('button'); btn.className='lock-btn'; btn.setAttribute('aria-label','Basculer droit');
+        btn.textContent = '🔓'; btn.classList.add('lock-off');
+
+        try{
+          const s = await fetch('/permissions/me?user='+encodeURIComponent(pseudo));
+          if(s.ok){
+            const sj = await s.json();
+            const a = !!sj.allowed;
+            btn.textContent = a?'🔓':'🔒';
+            btn.classList.toggle('lock-off', a);
+            btn.classList.toggle('lock-on', !a);
+          }
+        }catch(_){}
+
+        btn.addEventListener('click', async ()=>{
+          btn.disabled = true;
+          try{
+            const t = await fetch('/admin/permissions/toggle', {
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ user: pseudo })
+            });
+            const tj = await t.json();
+            const a = !!tj.allowed;
+            btn.textContent = a?'🔓':'🔒';
+            btn.classList.toggle('lock-off', a);
+            btn.classList.toggle('lock-on', !a);
+          }catch(_){ }
+          finally { btn.disabled = false; }
         });
-        const tj = await t.json();
-        const a = !!tj.allowed;
-        btn.textContent = a?'🔓':'🔒';
-        btn.classList.toggle('lock-off', a);
-        btn.classList.toggle('lock-on', !a);
-      }catch(_){ }
-      finally { btn.disabled = false; }
-    });
 
-    li.appendChild(name);
-    li.appendChild(badge);
-    li.appendChild(btn);
-    ul.appendChild(li);
-  }
-}
-if (window.IS_ADMIN){ refreshOnlineUsers(); setInterval(refreshOnlineUsers, 3000); }
-
+        li.appendChild(name);
+        li.appendChild(badge);
+        li.appendChild(btn);
+        ul.appendChild(li);
+      }
+    }
+    if (window.IS_ADMIN){ refreshOnlineUsers(); setInterval(refreshOnlineUsers, 3000); }
 
     // Init
     setController('vehicle');
@@ -527,8 +534,6 @@ if (window.IS_ADMIN){ refreshOnlineUsers(); setInterval(refreshOnlineUsers, 3000
       });
     }
     startHeartbeat('simulator');
-
-
   </script>
 </body>
 </html>

@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Chatbot - Drive Simulator Pro</title>
   <style>
     :root{
@@ -12,93 +12,154 @@
       --text-primary:#0f172a; --text-secondary:#475569; --text-muted:#64748b; --border:rgba(15,23,42,.1)
     }
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg-dark);min-height:100vh;color:var(--text-primary);line-height:1.6}
-    .header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;background:var(--bg-light);border-bottom:1px solid var(--border);box-shadow:0 4px 6px -1px rgba(0,0,0,.1)}
-    .header-left{display:flex;align-items:center;gap:1rem}
-    .logo{display:flex;align-items:center;gap:.75rem}
-    .logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--primary),var(--secondary));border-radius:10px;display:grid;place-items:center;font-size:1.5rem}
-    .header h1{font-size:1.25rem;font-weight:600;color:var(--text-primary);letter-spacing:-.025em}
-    .nav-tabs{display:flex;gap:.5rem}
-    .nav-tab{text-decoration:none;color:var(--text-secondary);padding:.5rem 1rem;border-radius:8px;transition:.2s;font-weight:500;font-size:.875rem}
+    html,body{height:100%}
+    body{
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      background:var(--bg-dark);min-height:100vh;color:var(--text-primary);line-height:1.6;
+    }
+
+    /* ===== HEADER ===== */
+    .header{
+      display:grid; grid-template-columns:auto 1fr auto; align-items:center;
+      gap:1rem; padding:.75rem 1rem; background:var(--bg-light);
+      border-bottom:1px solid var(--border); box-shadow:0 4px 6px -1px rgba(0,0,0,.06);
+      position:sticky; top:0; z-index:20;
+    }
+    .header-left{display:flex;align-items:center;gap:.75rem;min-width:0}
+    .logo{display:flex;align-items:center;gap:.6rem;min-width:0}
+    .logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--primary),var(--secondary));border-radius:10px;display:grid;place-items:center;font-size:1.3rem;flex:0 0 36px}
+    .header h1{font-size:1.05rem;font-weight:600;color:var(--text-primary);letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+    .center-brand{justify-self:center}
+    .brand-logo{height:28px;width:auto;display:block}
+
+    .header-right{display:flex;align-items:center;gap:.75rem;min-width:0}
+
+    /* Onglets = même style que web */
+    .nav-tabs{display:flex;gap:.5rem;align-items:center}
+    .nav-tab{text-decoration:none;color:var(--text-secondary);padding:.5rem 1rem;border-radius:8px;transition:.2s;font-weight:500;font-size:.875rem;white-space:nowrap}
     .nav-tab:hover{background:var(--surface);color:var(--text-primary)}
     .nav-tab.active{background:var(--primary);color:#fff;box-shadow:0 2px 8px rgba(59,130,246,.3)}
-    .chat-container{max-width:900px;margin:1.5rem auto;height:calc(100vh - 120px);display:flex;flex-direction:column;background:var(--bg-light);border-radius:16px;border:1px solid var(--border);box-shadow:0 10px 30px rgba(0,0,0,.08);overflow:hidden}
-    .chat-header{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:1.5rem;text-align:center;position:relative;border-bottom:1px solid var(--border)}
-    .chat-header h2{font-weight:600;font-size:1.25rem;position:relative;letter-spacing:-.025em}
-    .chatbox{flex:1;padding:1.5rem;overflow-y:auto;background:var(--surface);display:flex;flex-direction:column;gap:1rem}
+
+    /* Chip utilisateur */
+    .user-chip{display:flex;align-items:center;gap:.6rem;background:var(--bg-light);border:1px solid var(--border);border-radius:999px;padding:.35rem .5rem .35rem .35rem;box-shadow:0 2px 8px rgba(0,0,0,.06);flex:0 0 auto}
+    .user-avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;font-weight:700;font-size:.9rem}
+    .user-name{font-weight:600;color:var(--text-primary);font-size:.9rem;max-width:12ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .logout-form{margin:0}
+    .logout-btn{border:1px solid var(--border);background:var(--surface);font-size:.8rem;padding:.25rem .55rem;border-radius:8px;cursor:pointer;color:var(--text-secondary);transition:background .15s,transform .1s}
+    .logout-btn:hover{background:var(--surface-light)} .logout-btn:active{transform:translateY(1px)}
+
+    /* Badge page pour liste admin */
+    .admin-card{background:var(--bg-light);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:.75rem 1.25rem}
+    .user-pill{display:inline-flex;align-items:center;gap:.5rem;padding:.2rem .55rem;border:1px solid var(--border);border-radius:999px;background:var(--surface)}
+    .lock-btn{border:none;background:transparent;cursor:pointer;font-size:1rem;line-height:1}
+    .lock-on{color:var(--danger)} .lock-off{color:var(--success)}
+    .perm-hint{font-size:.8rem;color:var(--text-muted);margin-left:.5rem;display:none}
+    .page-badge{
+      font-size:.72rem;padding:.1rem .4rem;border-radius:999px;border:1px solid var(--border);
+      background:var(--surface);color:var(--text-muted);
+    }
+    .page-badge.sim{ background:rgba(59,130,246,.08); color:#1e40af; border-color:rgba(59,130,246,.25);}
+    .page-badge.chat{ background:rgba(16,185,129,.10); color:#065f46; border-color:rgba(16,185,129,.25);}
+    .page-badge.unknown{ background:var(--surface); color:var(--text-muted); }
+
+    /* ===== CHAT ===== */
+    .chat-container{
+      max-width:900px;margin:1rem auto;height:calc(100vh - 120px);
+      display:flex;flex-direction:column;background:var(--bg-light);border-radius:16px;border:1px solid var(--border);
+      box-shadow:0 10px 30px rgba(0,0,0,.08);overflow:hidden
+    }
+    .chat-header{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:1.1rem;text-align:center;position:relative;border-bottom:1px solid var(--border)}
+    .chat-header h2{font-weight:600;font-size:1.1rem;letter-spacing:-.02em}
+
+    .chatbox{flex:1;padding:1.1rem;overflow-y:auto;background:var(--surface);display:flex;flex-direction:column;gap:.9rem}
     .chatbox::-webkit-scrollbar{width:8px}.chatbox::-webkit-scrollbar-track{background:transparent}.chatbox::-webkit-scrollbar-thumb{background:var(--surface-light);border-radius:10px}.chatbox::-webkit-scrollbar-thumb:hover{background:var(--text-muted)}
-    .message{max-width:75%;padding:1rem 1.25rem;border-radius:16px;font-size:.95rem;line-height:1.5;animation:fadeInUp .3s ease;word-wrap:break-word}
+
+    .message{max-width:75%;padding:.9rem 1.1rem;border-radius:16px;font-size:.95rem;line-height:1.5;animation:fadeInUp .3s ease;word-wrap:break-word}
     .message.user{align-self:flex-end;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;border-bottom-right-radius:6px;box-shadow:0 4px 12px rgba(59,130,246,.25)}
     .message.bot{align-self:flex-start;background:var(--bg-light);color:var(--text-primary);border:1px solid var(--border);border-bottom-left-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
     .message .meta{font-size:.75rem;opacity:.7;margin-top:.5rem;font-style:italic}
+
     .image-card{display:flex;flex-direction:column;gap:.75rem}
     .image-card img{width:100%;max-width:450px;border-radius:12px;border:1px solid var(--border);box-shadow:0 8px 20px rgba(0,0,0,.08);transition:transform .2s}
     .image-card img:hover{transform:scale(1.02)}
+
     @keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
     @keyframes typing{0%,80%,100%{transform:scale(.8);opacity:.5}40%{transform:scale(1);opacity:1}}
     .typing-indicator{display:none;align-self:flex-start;padding:1rem 1.25rem;background:var(--bg-light);border-radius:16px;border-bottom-left-radius:6px;border:1px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,.05);animation:fadeInUp .3s ease}
     .typing-dots{display:flex;gap:6px;align-items:center}
     .typing-dots span{width:8px;height:8px;border-radius:50%;background:var(--primary);animation:typing 1.4s infinite ease-in-out}
     .typing-dots span:nth-child(1){animation-delay:-.32s}.typing-dots span:nth-child(2){animation-delay:-.16s}
+
     .empty-state{text-align:center;color:var(--text-muted);font-size:.95rem;margin-top:2rem;padding:2rem;background:var(--bg-light);border-radius:12px;border:1px dashed var(--border)}
-    .input-container{padding:1rem 1.25rem;background:var(--bg-light);border-top:1px solid var(--border);display:flex;gap:.75rem;align-items:center}
-    .input-message{flex:1;padding:1rem 1.25rem;border:2px solid var(--border);border-radius:12px;font-size:1rem;outline:none;transition:.2s;background:var(--surface);color:var(--text-primary);font-family:inherit}
+
+    .input-container{padding:.9rem 1rem;background:var(--bg-light);border-top:1px solid var(--border);display:flex;gap:.6rem;align-items:center}
+    .input-message{flex:1;padding:1rem 1.1rem;border:2px solid var(--border);border-radius:12px;font-size:1rem;outline:none;transition:.2s;background:var(--surface);color:var(--text-primary);font-family:inherit}
     .input-message::placeholder{color:var(--text-muted)}
     .input-message:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(59,130,246,.1);transform:scale(1.01)}
-    .send-btn{padding:1rem 1.5rem;background:linear-gradient(135deg,var(--success),#059669);color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:600;transition:.2s;display:flex;align-items:center;gap:.5rem;font-size:.95rem;box-shadow:0 4px 12px rgba(16,185,129,.3)}
+    .send-btn{padding:1rem 1.4rem;background:linear-gradient(135deg,var(--success),#059669);color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:600;transition:.2s;display:flex;align-items:center;gap:.5rem;font-size:.95rem;box-shadow:0 4px 12px rgba(16,185,129,.3)}
     .send-btn:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(16,185,129,.4)}
     .send-btn:active{transform:translateY(0)}
-    @media (max-width:768px){.chat-container{margin:1rem;height:calc(100vh - 100px);border-radius:12px}.message{max-width:85%}.image-card img{max-width:100%}.input-container{padding:.75rem 1rem}.send-btn{padding:.875rem 1.25rem}.header h1{font-size:1.1rem}}
-    .user-chip{display:flex;align-items:center;gap:.6rem;background:var(--bg-light);border:1px solid var(--border);border-radius:999px;padding:.35rem .5rem .35rem .35rem;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-    .user-avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;font-weight:700;font-size:.9rem}
-    .user-name{font-weight:600;color:var(--text-primary);font-size:.9rem}
-    .logout-form{margin:0}
-    .logout-btn{border:1px solid var(--border);background:var(--surface);font-size:.8rem;padding:.25rem .55rem;border-radius:8px;cursor:pointer;color:var(--text-secondary);transition:background .15s,transform .1s}
-    .logout-btn:hover{background:var(--surface-light)} .logout-btn:active{transform:translateY(1px)}
-    /* Admin: liste + cadenas */
-    .admin-card{background:var(--bg-light);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:.75rem 1.25rem}
-    .user-pill{display:inline-flex;align-items:center;gap:.5rem;padding:.2rem .55rem;border:1px solid var(--border);border-radius:999px;background:var(--surface)}
-    .lock-btn{border:none;background:transparent;cursor:pointer;font-size:1rem;line-height:1}
-    .lock-on{color:var(--danger)} .lock-off{color:var(--success)}
-    .perm-hint{font-size:.8rem;color:var(--text-muted);margin-left:.5rem;display:none}
-    /* même logique que sur simulator.html */
-    .header{ display:grid; grid-template-columns:auto 1fr auto; align-items:center; }
-    .center-brand{ justify-self:center; }
-    .brand-logo{ height:32px; width:auto; }
-    .page-badge{
-      font-size:.72rem;
-      padding:.1rem .4rem;
-      border-radius:999px;
-      border:1px solid var(--border);
-      background:var(--surface);
-      color:var(--text-muted);
+
+    /* ====== MOBILE FIRST TWEAKS ====== */
+    @media (max-width: 768px){
+      .brand-logo{height:24px}
+      .header{
+        grid-template-columns:1fr auto; grid-template-areas:
+          "left right"
+          "brand brand";
+        row-gap:.5rem;
+      }
+      .header-left{grid-area:left}
+      .center-brand{grid-area:brand; justify-self:center}
+      .header-right{grid-area:right}
+      /* Onglets visibles AVANT le chip utilisateur */
+      .nav-tabs{order:0; max-width:70vw; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none}
+      .nav-tabs::-webkit-scrollbar{display:none}
+      .nav-tab{padding:.45rem .8rem; font-size:.85rem}
+      .user-chip{order:1}
+      /* Hauteurs & rayons compacts */
+      .chat-container{margin:.75rem;height:calc(100vh - 150px);border-radius:12px}
+      .chat-header h2{font-size:1rem}
+      .message{max-width:85%}
+      .image-card img{max-width:100%}
+      .input-container{padding:.75rem .9rem}
+      .send-btn{padding:.85rem 1.15rem}
     }
-    .page-badge.sim{ background:rgba(59,130,246,.08); color:#1e40af; border-color:rgba(59,130,246,.25); }
-    .page-badge.chat{ background:rgba(16,185,129,.10); color:#065f46; border-color:rgba(16,185,129,.25); }
-    .page-badge.unknown{ background:var(--surface); color:var(--text-muted); }
 
-
+    /* Très petits écrans */
+    @media (max-width: 420px){
+      .header h1{display:none} /* évite le décalage du logo, on garde l’icône */
+      .logo-icon{width:32px;height:32px;font-size:1.1rem}
+      .brand-logo{height:22px}
+      .user-name{max-width:9ch}
+      .logout-btn{display:none} /* garde l’essentiel visible */
+      .chat-container{height:calc(100vh - 160px)}
+    }
   </style>
   <script>window.IS_ADMIN = {{ 'true' if is_admin else 'false' }};</script>
 </head>
 <body>
-<div class="header">
-  <div class="header-left">
-    <div class="logo"><div class="logo-icon">🚗</div><h1>Drive Simulator Pro</h1></div>
-  </div>
-
-  <!-- NOUVEAU bloc central -->
-  <div class="center-brand">
-    <img src="/static/logo.png" alt="Logo Drive Simulator Pro" class="brand-logo">
-  </div>
-
-  <!-- Regroupe onglets + chip à droite -->
-  <div class="header-right" style="display:flex;align-items:center;gap:1rem;">
-    <div class="nav-tabs">
-      <a href="/" class="nav-tab">Simulateur</a>
-      <a href="/chatbot" class="nav-tab active">Chatbot</a>
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">
+        <div class="logo-icon">🚗</div>
+        <h1>Drive Simulator Pro</h1>
+      </div>
     </div>
-    <div class="user-chip" title="Utilisateur connecté">
+
+    <!-- Logo recentré sur mobile -->
+    <div class="center-brand">
+      <img src="/static/logo.png" alt="Logo Drive Simulator Pro" class="brand-logo">
+    </div>
+
+    <!-- Onglets AVANT le chip utilisateur sur mobile -->
+    <div class="header-right">
+      <nav class="nav-tabs" aria-label="Navigation principale">
+        <a href="/" class="nav-tab">Simulateur</a>
+        <a href="/chatbot" class="nav-tab active">Chatbot</a>
+      </nav>
+      <div class="user-chip" title="Utilisateur connecté">
         <span class="user-avatar">{{ (user or '?')[:1]|upper }}</span>
         <span class="user-name">{{ user or 'Invité' }}</span>
         {% if is_admin %}
@@ -108,8 +169,6 @@
       </div>
     </div>
   </div>
-  </div>
-</div>
 
   <div class="chat-container">
     <div class="chat-header"><h2>💬 Assistant de Conduite IA</h2></div>
@@ -140,8 +199,8 @@
     <div class="typing-indicator" id="typingIndicator"><div class="typing-dots"><span></span><span></span><span></span></div></div>
 
     <div class="input-container">
-      <input id="inputMessage" class="input-message" placeholder="Tapez votre message ici..." maxlength="500"/>
-      <button class="send-btn" id="sendBtn"><span>📨</span>Envoyer</button>
+      <input id="inputMessage" class="input-message" placeholder="Tapez votre message ici..." maxlength="500" />
+      <button class="send-btn" id="sendBtn" aria-label="Envoyer le message"><span>📨</span>Envoyer</button>
       <span id="permHintChat" class="perm-hint">🔒 Envoi désactivé par l’admin</span>
     </div>
   </div>
@@ -166,11 +225,8 @@
       heartbeat(page);
       window.__heartbeatTimer && clearInterval(window.__heartbeatTimer);
       window.__heartbeatTimer = setInterval(()=>heartbeat(page), 5000);
-      document.addEventListener('visibilitychange', ()=>{
-        if(document.visibilityState === 'visible'){ heartbeat(page); }
-      });
+      document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'visible'){ heartbeat(page); }});
     }
-    // Démarre ici pour le chatbot
     startHeartbeat('chatbot');
 
     inputMessage.addEventListener('keypress',e=>{ if(e.key==='Enter') sendMessage(); });
@@ -182,13 +238,17 @@
       return patterns.some(rx=>rx.test(t));
     }
 
-    function addMessage(text,sender='bot'){ if(isFirstMessage){ chatbox.innerHTML=''; isFirstMessage=false; }
-      const div=document.createElement('div'); div.className=`message ${sender}`; div.textContent=text; chatbox.appendChild(div); chatbox.scrollTop=chatbox.scrollHeight; return div; }
-    function addImageCard({src,alt,caption}){ const wrap=document.createElement('div'); wrap.className='message bot';
+    function addMessage(text,sender='bot'){
+      if(isFirstMessage){ chatbox.innerHTML=''; isFirstMessage=false; }
+      const div=document.createElement('div'); div.className=`message ${sender}`; div.textContent=text; chatbox.appendChild(div); chatbox.scrollTop=chatbox.scrollHeight; return div;
+    }
+    function addImageCard({src,alt,caption}){
+      const wrap=document.createElement('div'); wrap.className='message bot';
       const card=document.createElement('div'); card.className='image-card';
       const img=document.createElement('img'); img.alt=alt||'Image capturée'; if(src) img.src=src;
       const meta=document.createElement('div'); meta.className='meta'; meta.textContent=caption||'';
-      card.appendChild(img); card.appendChild(meta); wrap.appendChild(card); chatbox.appendChild(wrap); chatbox.scrollTop=chatbox.scrollHeight; return {wrap,img,meta}; }
+      card.appendChild(img); card.appendChild(meta); wrap.appendChild(card); chatbox.appendChild(wrap); chatbox.scrollTop=chatbox.scrollHeight; return {wrap,img,meta};
+    }
     function showTyping(){ typingIndicator.style.display='block'; chatbox.scrollTop=chatbox.scrollHeight; }
     function hideTyping(){ typingIndicator.style.display='none'; }
 
@@ -219,7 +279,7 @@
     inputMessage.addEventListener('focus',function(){ this.style.transform='scale(1.01)'; });
     inputMessage.addEventListener('blur',function(){ this.style.transform='scale(1)'; });
 
-    // ------- Permissions (front) -------------------------------------------
+    // ------- Permissions (front) -------
     window.__chatAllowed = true;
     function applyChatPermission(allowed){
       window.__chatAllowed = !!allowed;
@@ -234,98 +294,97 @@
     }
     pollMyPermission(); setInterval(pollMyPermission, 3000);
 
-    // ------- Admin: cadenas à côté de chaque pseudo -------------------------
-  async function refreshOnlineUsers(){
-    if (!window.IS_ADMIN) return;
+    // ------- Admin: liste + cadenas ----
+    async function refreshOnlineUsers(){
+      if (!window.IS_ADMIN) return;
+      let j;
+      try {
+        const r = await fetch('/users/online');
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        j = await r.json();
+      } catch (e) {
+        const ul = document.getElementById('online-users');
+        if (ul) {
+          ul.innerHTML = '';
+          const li = document.createElement('li');
+          li.style.color = 'var(--text-muted)';
+          li.textContent = "Impossible de charger les utilisateurs…";
+          ul.appendChild(li);
+        }
+        return;
+      }
 
-    let j;
-    try {
-      const r = await fetch('/users/online');
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      j = await r.json();
-    } catch (e) {
-      const ul = document.getElementById('online-users');
-      if (ul) {
-        ul.innerHTML = '';
-        const li = document.createElement('li');
-        li.style.color = 'var(--text-muted)';
-        li.textContent = "Impossible de charger les utilisateurs…";
+      const ul = document.getElementById('online-users'); if(!ul) return;
+      ul.innerHTML = '';
+
+      const detailed = Array.isArray(j.users_detailed) ? j.users_detailed : [];
+      const fallbackNames = Array.isArray(j.users) ? j.users : [];
+      const list = detailed.length ? detailed : fallbackNames.map(n=>({name:n, page:'unknown'}));
+
+      if (list.length === 0){
+        const li=document.createElement('li');
+        li.style.color='var(--text-muted)';
+        li.textContent='Personne d’autre en ligne';
+        ul.appendChild(li);
+        return;
+      }
+
+      for(const item of list){
+        const pseudo = item.name || item;
+        const page = item.page || 'unknown';
+
+        const li=document.createElement('li'); li.className='user-pill';
+        const name=document.createElement('span'); name.textContent=pseudo;
+
+        const badge=document.createElement('span');
+        badge.className='page-badge ' + (page==='simulator'?'sim':(page==='chatbot'?'chat':'unknown'));
+        badge.textContent = page==='simulator' ? 'Simulateur' : (page==='chatbot' ? 'Chatbot' : 'Inconnu');
+
+        const btn=document.createElement('button'); btn.className='lock-btn';
+        btn.setAttribute('aria-label','Basculer droit'); btn.textContent='🔓'; btn.classList.add('lock-off');
+        try{
+          const s = await fetch('/permissions/me?user='+encodeURIComponent(pseudo));
+          if(s.ok){
+            const sj = await s.json();
+            const a = !!sj.allowed;
+            btn.textContent = a?'🔓':'🔒';
+            btn.classList.toggle('lock-off', a);
+            btn.classList.toggle('lock-on', !a);
+          }
+        }catch(_){}
+
+        btn.addEventListener('click', async ()=>{
+          btn.disabled = true;
+          try{
+            const t = await fetch('/admin/permissions/toggle', {
+              method:'POST',
+              headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ user: pseudo })
+            });
+            const tj = await t.json();
+            const a = !!tj.allowed;
+            btn.textContent = a?'🔓':'🔒';
+            btn.classList.toggle('lock-off', a);
+            btn.classList.toggle('lock-on', !a);
+          }catch(_){ }
+          finally { btn.disabled = false; }
+        });
+
+        // bouton 📜 pour ouvrir la vue des logs
+        const logBtn = document.createElement('button');
+        logBtn.className = 'lock-btn'; logBtn.setAttribute('title','Voir la conversation'); logBtn.textContent = '📜';
+        logBtn.addEventListener('click', ()=> openAdminLogView(pseudo));
+
+        li.appendChild(name);
+        li.appendChild(badge);
+        li.appendChild(btn);
+        li.appendChild(logBtn);
         ul.appendChild(li);
       }
-      return;
     }
+    if (window.IS_ADMIN){ refreshOnlineUsers(); setInterval(refreshOnlineUsers, 3000); }
 
-    const ul = document.getElementById('online-users'); if(!ul) return;
-    ul.innerHTML = '';
-
-    const detailed = Array.isArray(j.users_detailed) ? j.users_detailed : [];
-    const fallbackNames = Array.isArray(j.users) ? j.users : [];
-    const list = detailed.length ? detailed : fallbackNames.map(n=>({name:n, page:'unknown'}));
-
-    if (list.length === 0){
-      const li=document.createElement('li');
-      li.style.color='var(--text-muted)';
-      li.textContent='Personne d’autre en ligne';
-      ul.appendChild(li);
-      return;
-    }
-
-    for(const item of list){
-      const pseudo = item.name || item;
-      const page = item.page || 'unknown';
-
-      const li=document.createElement('li'); li.className='user-pill';
-      const name=document.createElement('span'); name.textContent=pseudo;
-
-      const badge=document.createElement('span');
-      badge.className='page-badge ' + (page==='simulator'?'sim':(page==='chatbot'?'chat':'unknown'));
-      badge.textContent = page==='simulator' ? 'Simulateur' : (page==='chatbot' ? 'Chatbot' : 'Inconnu');
-
-      const btn=document.createElement('button'); btn.className='lock-btn';
-      btn.setAttribute('aria-label','Basculer droit'); btn.textContent='🔓'; btn.classList.add('lock-off');
-      try{
-        const s = await fetch('/permissions/me?user='+encodeURIComponent(pseudo));
-        if(s.ok){
-          const sj = await s.json();
-          const a = !!sj.allowed;
-          btn.textContent = a?'🔓':'🔒';
-          btn.classList.toggle('lock-off', a);
-          btn.classList.toggle('lock-on', !a);
-        }
-      }catch(_){}
-
-      btn.addEventListener('click', async ()=>{
-        btn.disabled = true;
-        try{
-          const t = await fetch('/admin/permissions/toggle', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ user: pseudo })
-          });
-          const tj = await t.json();
-          const a = !!tj.allowed;
-          btn.textContent = a?'🔓':'🔒';
-          btn.classList.toggle('lock-off', a);
-          btn.classList.toggle('lock-on', !a);
-        }catch(_){ }
-        finally { btn.disabled = false; }
-      });
-
-      // bouton 📜 pour ouvrir la vue des logs
-      const logBtn = document.createElement('button');
-      logBtn.className = 'lock-btn'; logBtn.setAttribute('title','Voir la conversation'); logBtn.textContent = '📜';
-      logBtn.addEventListener('click', ()=> openAdminLogView(pseudo));
-
-      li.appendChild(name);
-      li.appendChild(badge);
-      li.appendChild(btn);
-      li.appendChild(logBtn);
-      ul.appendChild(li);
-    }
-  }
-  if (window.IS_ADMIN){ refreshOnlineUsers(); setInterval(refreshOnlineUsers, 3000); }
-
-    // ===== Admin: affichage des journaux de conversation (lecture seule) =====
+    // ===== Admin: journaux (lecture seule) =====
     let __adminViewingUser = null;
     let __adminLogsTimer = null;
 
@@ -335,7 +394,6 @@
     }
 
     function renderAdminLogs(user, logs){
-      // Nettoie et affiche les messages enregistrés
       chatbox.innerHTML = '';
       isFirstMessage = false;
       if(!Array.isArray(logs) || logs.length === 0){
@@ -374,8 +432,7 @@
       __adminViewingUser = user;
       document.getElementById('adminViewerUser').textContent = user;
       document.getElementById('adminViewerBar').style.display = 'block';
-      // Désactive l’envoi depuis l’admin pendant la vue (lecture seule)
-      applyChatPermission(false);
+      applyChatPermission(false); // lecture seule pendant la vue
       fetchAdminLogsOnce(user);
       __adminLogsTimer = setInterval(()=>fetchAdminLogsOnce(user), 3000);
     }
@@ -383,19 +440,15 @@
       if(__adminLogsTimer){ clearInterval(__adminLogsTimer); __adminLogsTimer=null; }
       __adminViewingUser = null;
       document.getElementById('adminViewerBar').style.display = 'none';
-      // Rétablit le droit d’écrire pour l’admin (toujours autorisé côté backend)
-      applyChatPermission(true);
+      applyChatPermission(true); // réactive l’envoi
       clearChat();
     }
-
     function openAdminLogView(user){
       if(!window.IS_ADMIN) return;
       startAdminLogsLive(user);
     }
-
     const closeBtn = document.getElementById('adminViewerClose');
     if(closeBtn){ closeBtn.addEventListener('click', stopAdminLogsLive); }
-
   </script>
 </body>
 </html>
